@@ -63,6 +63,11 @@ sudo wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google
 sudo dpkg -i /tmp/google-chrome.deb || sudo apt-get install -f -y
 check_and_log google-chrome "Google Chrome Installed"
 
+# Installing LibreOffice
+header "Installing LibreOffice"
+sudo apt-get install -y libreoffice
+check_and_log libreoffice "LibreOffice Installed"
+
 # Installing AnyDesk
 header "Installing AnyDesk"
 wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo gpg --dearmor -o /usr/share/keyrings/anydesk.gpg
@@ -134,7 +139,7 @@ fi
 header "Creating User"
 sudo useradd -m -s /bin/bash depo 2>/dev/null
 if id "depo" &>/dev/null; then
-  echo "depo:depo" | sudo chpasswd
+  echo "Depo:depo" | sudo chpasswd
   sudo usermod -aG sudo depo && log_success "User 'Depo' Created and Added to Sudo" || log_failure "User Modification Failed"
 else
   log_failure "User Creation Failed"
@@ -153,6 +158,10 @@ for i in "${failure_log[@]}"; do
 done
 
 echo -e "\nAdarsh Setup Completed! Log available at $LOG_FILE"
+
+# Copy log to Desktop
+desktop_path="/home/$SUDO_USER/Desktop"
+cp "$LOG_FILE" "$desktop_path/adarshsetup-log.txt" && echo "Log copied to Desktop." || echo "Failed to copy log to Desktop."
 
 # Reboot in 5 seconds
 echo -e "\nRebooting in 5 seconds..."

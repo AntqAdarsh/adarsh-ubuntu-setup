@@ -159,9 +159,21 @@ done
 
 echo -e "\nAdarsh Setup Completed! Log available at $LOG_FILE"
 
-# Copy log to Desktop
-desktop_path="/home/$SUDO_USER/Desktop"
-cp "$LOG_FILE" "$desktop_path/adarshsetup-log.txt" && echo "Log copied to Desktop." || echo "Failed to copy log to Desktop."
+# Copy log to current user's Desktop
+header "Copying Log File to Desktop"
+DESKTOP_PATH_CURRENT="$HOME/Desktop"
+FINAL_LOG_NAME="adarshsetup-log.txt"
+
+if [ -d "$DESKTOP_PATH_CURRENT" ]; then
+  cp "$LOG_FILE" "$DESKTOP_PATH_CURRENT/$FINAL_LOG_NAME" 2>/dev/null
+  if [ $? -eq 0 ]; then
+    log_success "Log copied to current user's Desktop"
+  else
+    log_failure "Failed to copy log to current user's Desktop"
+  fi
+else
+  log_failure "Current user's Desktop directory not found"
+fi
 
 # Reboot in 5 seconds
 echo -e "\nRebooting in 5 seconds..."

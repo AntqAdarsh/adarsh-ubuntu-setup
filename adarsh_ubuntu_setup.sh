@@ -137,10 +137,10 @@ fi
 
 # Creating User Depo
 header "Creating User"
-sudo useradd -m -s /bin/bash depo 2>/dev/null
-if id "depo" &>/dev/null; then
+sudo useradd -m -s /bin/bash Depo 2>/dev/null
+if id "Depo" &>/dev/null; then
   echo "Depo:depo" | sudo chpasswd
-  sudo usermod -aG sudo depo && log_success "User 'Depo' Created and Added to Sudo" || log_failure "User Modification Failed"
+  sudo usermod -aG sudo Depo && log_success "User 'Depo' Created and Added to Sudo" || log_failure "User Modification Failed"
 else
   log_failure "User Creation Failed"
 fi

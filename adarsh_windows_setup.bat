@@ -1,90 +1,226 @@
 @echo off
-setlocal enabledelayedexpansion
-
-:: Create log file
 set LOG_FILE=%USERPROFILE%\Desktop\windows-automation-log.txt
-echo Windows Automation Started > "%LOG_FILE%"
 
-:: Create D:\Software\Installers directory
-if not exist "D:\Software\Installers" (
-    mkdir "D:\Software\Installers"
-    echo [SUCCESS] Created D:\Software\Installers >> "%LOG_FILE%"
-) else (
-    echo [INFO] D:\Software\Installers already exists >> "%LOG_FILE%"
+rem Check Internet Connectivity
+echo [INFO] Checking Internet Connection... >> %LOG_FILE%
+echo Checking Internet Connection...
+ping -n 1 google.com >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] No internet connection detected. Please connect to the internet and press any key to continue... >> %LOG_FILE%
+    echo No internet connection detected. Please connect to the internet and press any key to continue...
+    pause
+    rem Wait until the user connects the device to the internet
+    :waitForInternet
+    ping -n 1 google.com >nul 2>&1
+    if errorlevel 1 (
+        echo Still no internet connection. Waiting for connection... >> %LOG_FILE%
+        echo Still no internet connection. Waiting for connection...
+        timeout /t 5 >nul
+        goto waitForInternet
+    )
+    echo [INFO] Internet connection detected! >> %LOG_FILE%
+    echo Internet connection detected!
 )
 
-:: Windows Update
-echo Updating Windows... >> "%LOG_FILE%"
-start /wait powershell -Command "Install-Module PSWindowsUpdate -Force; Import-Module PSWindowsUpdate; Get-WindowsUpdate -AcceptAll -Install -AutoReboot"
+rem Create Software Folder in D: Drive
+echo [INFO] Creating Software folder in D:\... >> %LOG_FILE%
+mkdir D:\Software
 
-:: After updates, script will resume automatically if added to Task Scheduler (future plan)
+rem Set the default download path to D:\Software
+set DOWNLOAD_PATH=D:\Software
 
-:: Disable Sleep Settings
-echo Disabling Sleep Settings... >> "%LOG_FILE%"
-powercfg -change -standby-timeout-ac 0
-powercfg -change -standby-timeout-dc 0
-powercfg -change -hibernate-timeout-ac 0
-powercfg -change -hibernate-timeout-dc 0
-echo [SUCCESS] Sleep settings disabled >> "%LOG_FILE%"
+rem Download Google Chrome Installer
+echo [INFO] Downloading Google Chrome... >> %LOG_FILE%
+echo Downloading Google Chrome...
+powershell -Command "Invoke-WebRequest 'https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb' -OutFile '%DOWNLOAD_PATH%\chrome_installer.deb'"
+if errorlevel 1 (
+    echo [ERROR] Failed to download Google Chrome installer. >> %LOG_FILE%
+    echo Failed to download Google Chrome installer.
+    exit /b 1
+)
+echo [SUCCESS] Google Chrome downloaded. >> %LOG_FILE%
+echo Google Chrome downloaded.
 
-:: Disable Windows Firewall
-echo Disabling Windows Firewall... >> "%LOG_FILE%"
-netsh advfirewall set allprofiles state off
-echo [SUCCESS] Windows Firewall disabled >> "%LOG_FILE%"
+rem Install Google Chrome
+echo [INFO] Installing Google Chrome... >> %LOG_FILE%
+echo Installing Google Chrome...
+start /wait powershell -Command "Start-Process 'msiexec.exe' -ArgumentList '/i', '%DOWNLOAD_PATH%\chrome_installer.deb', '/quiet', '/norestart' -NoNewWindow -Wait"
+if errorlevel 1 (
+    echo [ERROR] Failed to install Google Chrome. >> %LOG_FILE%
+    echo Failed to install Google Chrome.
+    exit /b 1
+)
+echo [SUCCESS] Google Chrome installed. >> %LOG_FILE%
+echo Google Chrome installed.
 
-:: Download Installers
-echo Downloading Installers... >> "%LOG_FILE%"
+rem Download Firefox Installer
+echo [INFO] Downloading Mozilla Firefox... >> %LOG_FILE%
+echo Downloading Mozilla Firefox...
+powershell -Command "Invoke-WebRequest 'https://download.mozilla.org/?product=firefox-latest&os=win64&lang=en-US' -OutFile '%DOWNLOAD_PATH%\firefox_installer.exe'"
+if errorlevel 1 (
+    echo [ERROR] Failed to download Firefox installer. >> %LOG_FILE%
+    echo Failed to download Firefox installer.
+    exit /b 1
+)
+echo [SUCCESS] Firefox downloaded. >> %LOG_FILE%
+echo Firefox downloaded.
 
-:: Chrome
-powershell -Command "Invoke-WebRequest -Uri 'https://dl.google.com/chrome/install/latest/chrome_installer.exe' -OutFile 'D:\Software\Installers\chrome_installer.exe'"
+rem Install Firefox
+echo [INFO] Installing Firefox... >> %LOG_FILE%
+echo Installing Firefox...
+start /wait %DOWNLOAD_PATH%\firefox_installer.exe /silent
+if errorlevel 1 (
+    echo [ERROR] Failed to install Firefox. >> %LOG_FILE%
+    echo Failed to install Firefox.
+    exit /b 1
+)
+echo [SUCCESS] Firefox installed. >> %LOG_FILE%
+echo Firefox installed.
 
-:: Firefox
-powershell -Command "Invoke-WebRequest -Uri 'https://download.mozilla.org/?product=firefox-latest-ssl&os=win64&lang=en-US' -OutFile 'D:\Software\Installers\firefox_installer.exe'"
+rem Download WinRAR Installer
+echo [INFO] Downloading WinRAR... >> %LOG_FILE%
+echo Downloading WinRAR...
+powershell -Command "Invoke-WebRequest 'https://www.rarlab.com/rar/winrar-x64-611.exe' -OutFile '%DOWNLOAD_PATH%\winrar_installer.exe'"
+if errorlevel 1 (
+    echo [ERROR] Failed to download WinRAR installer. >> %LOG_FILE%
+    echo Failed to download WinRAR installer.
+    exit /b 1
+)
+echo [SUCCESS] WinRAR downloaded. >> %LOG_FILE%
+echo WinRAR downloaded.
 
-:: UltraViewer
-powershell -Command "Invoke-WebRequest -Uri 'https://ultraviewer.net/UltraViewer_setup.exe' -OutFile 'D:\Software\Installers\ultraviewer_installer.exe'"
+rem Install WinRAR
+echo [INFO] Installing WinRAR... >> %LOG_FILE%
+echo Installing WinRAR...
+start /wait %DOWNLOAD_PATH%\winrar_installer.exe /S
+if errorlevel 1 (
+    echo [ERROR] Failed to install WinRAR. >> %LOG_FILE%
+    echo Failed to install WinRAR.
+    exit /b 1
+)
+echo [SUCCESS] WinRAR installed. >> %LOG_FILE%
+echo WinRAR installed.
 
-:: AnyDesk
-powershell -Command "Invoke-WebRequest -Uri 'https://download.anydesk.com/AnyDesk.exe' -OutFile 'D:\Software\Installers\anydesk_installer.exe'"
+rem Download UltraViewer Installer
+echo [INFO] Downloading UltraViewer... >> %LOG_FILE%
+echo Downloading UltraViewer...
+powershell -Command "Invoke-WebRequest 'https://www.ultraviewer.net/download/ultraviewer_setup.exe' -OutFile '%DOWNLOAD_PATH%\ultraviewer_installer.exe'"
+if errorlevel 1 (
+    echo [ERROR] Failed to download UltraViewer installer. >> %LOG_FILE%
+    echo Failed to download UltraViewer installer.
+    exit /b 1
+)
+echo [SUCCESS] UltraViewer downloaded. >> %LOG_FILE%
+echo UltraViewer downloaded.
 
-:: NoMachine
-powershell -Command "Invoke-WebRequest -Uri 'https://download.nomachine.com/download/8.11/Windows/nomachine_8.11.3_1_x64.exe' -OutFile 'D:\Software\Installers\nomachine_installer.exe'"
+rem Install UltraViewer
+echo [INFO] Installing UltraViewer... >> %LOG_FILE%
+echo Installing UltraViewer...
+start /wait %DOWNLOAD_PATH%\ultraviewer_installer.exe /S
+if errorlevel 1 (
+    echo [ERROR] Failed to install UltraViewer. >> %LOG_FILE%
+    echo Failed to install UltraViewer.
+    exit /b 1
+)
+echo [SUCCESS] UltraViewer installed. >> %LOG_FILE%
+echo UltraViewer installed.
 
-:: TigerVNC
-powershell -Command "Invoke-WebRequest -Uri 'https://downloads.sourceforge.net/project/tigervnc/stable/1.13.1/tigervnc-1.13.1.exe' -OutFile 'D:\Software\Installers\tigervnc_installer.exe'"
+rem Download AnyDesk Installer
+echo [INFO] Downloading AnyDesk... >> %LOG_FILE%
+echo Downloading AnyDesk...
+powershell -Command "Invoke-WebRequest 'https://download.anydesk.com/anydesk.exe' -OutFile '%DOWNLOAD_PATH%\anydesk_installer.exe'"
+if errorlevel 1 (
+    echo [ERROR] Failed to download AnyDesk installer. >> %LOG_FILE%
+    echo Failed to download AnyDesk installer.
+    exit /b 1
+)
+echo [SUCCESS] AnyDesk downloaded. >> %LOG_FILE%
+echo AnyDesk downloaded.
 
-:: WinRAR
-powershell -Command "Invoke-WebRequest -Uri 'https://www.rarlab.com/rar/winrar-x64-624.exe' -OutFile 'D:\Software\Installers\winrar_installer.exe'"
+rem Install AnyDesk
+echo [INFO] Installing AnyDesk... >> %LOG_FILE%
+echo Installing AnyDesk...
+start /wait %DOWNLOAD_PATH%\anydesk_installer.exe /silent
+if errorlevel 1 (
+    echo [ERROR] Failed to install AnyDesk. >> %LOG_FILE%
+    echo Failed to install AnyDesk.
+    exit /b 1
+)
+echo [SUCCESS] AnyDesk installed. >> %LOG_FILE%
+echo AnyDesk installed.
 
-:: doPDF
-powershell -Command "Invoke-WebRequest -Uri 'https://www.dopdf.com/download/setup/dopdf-full.exe' -OutFile 'D:\Software\Installers\dopdf_installer.exe'"
+rem Download NoMachine Installer
+echo [INFO] Downloading NoMachine... >> %LOG_FILE%
+echo Downloading NoMachine...
+powershell -Command "Invoke-WebRequest 'https://www.nomachine.com/download-package?platform=windows' -OutFile '%DOWNLOAD_PATH%\nomachine_installer.exe'"
+if errorlevel 1 (
+    echo [ERROR] Failed to download NoMachine installer. >> %LOG_FILE%
+    echo Failed to download NoMachine installer.
+    exit /b 1
+)
+echo [SUCCESS] NoMachine downloaded. >> %LOG_FILE%
+echo NoMachine downloaded.
 
-echo [SUCCESS] All installers downloaded >> "%LOG_FILE%"
+rem Install NoMachine
+echo [INFO] Installing NoMachine... >> %LOG_FILE%
+echo Installing NoMachine...
+start /wait %DOWNLOAD_PATH%\nomachine_installer.exe /silent
+if errorlevel 1 (
+    echo [ERROR] Failed to install NoMachine. >> %LOG_FILE%
+    echo Failed to install NoMachine.
+    exit /b 1
+)
+echo [SUCCESS] NoMachine installed. >> %LOG_FILE%
+echo NoMachine installed.
 
-:: Install Applications
-echo Installing Applications... >> "%LOG_FILE%"
+rem Download DoPDF Installer
+echo [INFO] Downloading DoPDF... >> %LOG_FILE%
+echo Downloading DoPDF...
+powershell -Command "Invoke-WebRequest 'https://www.dopdf.com/dopdf-10-6-122.exe' -OutFile '%DOWNLOAD_PATH%\dopdf_installer.exe'"
+if errorlevel 1 (
+    echo [ERROR] Failed to download DoPDF installer. >> %LOG_FILE%
+    echo Failed to download DoPDF installer.
+    exit /b 1
+)
+echo [SUCCESS] DoPDF downloaded. >> %LOG_FILE%
+echo DoPDF downloaded.
 
-start /wait D:\Software\Installers\chrome_installer.exe /silent /install
-start /wait D:\Software\Installers\firefox_installer.exe /silent
-start /wait D:\Software\Installers\ultraviewer_installer.exe /silent
-start /wait D:\Software\Installers\anydesk_installer.exe --install
-start /wait D:\Software\Installers\nomachine_installer.exe /quiet
-start /wait D:\Software\Installers\tigervnc_installer.exe /S
-start /wait D:\Software\Installers\winrar_installer.exe /S
-start /wait D:\Software\Installers\dopdf_installer.exe /VERYSILENT
+rem Install DoPDF
+echo [INFO] Installing DoPDF... >> %LOG_FILE%
+echo Installing DoPDF...
+start /wait %DOWNLOAD_PATH%\dopdf_installer.exe /silent
+if errorlevel 1 (
+    echo [ERROR] Failed to install DoPDF. >> %LOG_FILE%
+    echo Failed to install DoPDF.
+    exit /b 1
+)
+echo [SUCCESS] DoPDF installed. >> %LOG_FILE%
+echo DoPDF installed.
 
-echo [SUCCESS] All applications installed >> "%LOG_FILE%"
+rem Download TigerVNC Installer
+echo [INFO] Downloading TigerVNC... >> %LOG_FILE%
+echo Downloading TigerVNC...
+powershell -Command "Invoke-WebRequest 'https://github.com/TigerVNC/tigervnc/releases/download/v1.11.0/tigervnc-1.11.0.x64.exe' -OutFile '%DOWNLOAD_PATH%\tigervnc_installer.exe'"
+if errorlevel 1 (
+    echo [ERROR] Failed to download TigerVNC installer. >> %LOG_FILE%
+    echo Failed to download TigerVNC installer.
+    exit /b 1
+)
+echo [SUCCESS] TigerVNC downloaded. >> %LOG_FILE%
+echo TigerVNC downloaded.
 
-:: Create Desktop Shortcuts (only for Chrome, Firefox, UltraViewer, AnyDesk)
-echo Creating Desktop Shortcuts... >> "%LOG_FILE%"
+rem Install TigerVNC
+echo [INFO] Installing TigerVNC... >> %LOG_FILE%
+echo Installing TigerVNC...
+start /wait %DOWNLOAD_PATH%\tigervnc_installer.exe /S
+if errorlevel 1 (
+    echo [ERROR] Failed to install TigerVNC. >> %LOG_FILE%
+    echo Failed to install TigerVNC.
+    exit /b 1
+)
+echo [SUCCESS] TigerVNC installed. >> %LOG_FILE%
+echo TigerVNC installed.
 
-powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%USERPROFILE%\Desktop\Google Chrome.lnk');$s.TargetPath='C:\Program Files\Google\Chrome\Application\chrome.exe';$s.Save()"
-powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%USERPROFILE%\Desktop\Mozilla Firefox.lnk');$s.TargetPath='C:\Program Files\Mozilla Firefox\firefox.exe';$s.Save()"
-powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%USERPROFILE%\Desktop\UltraViewer.lnk');$s.TargetPath='C:\Program Files\UltraViewer\UltraViewer.exe';$s.Save()"
-powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%USERPROFILE%\Desktop\AnyDesk.lnk');$s.TargetPath='C:\Program Files (x86)\AnyDesk\AnyDesk.exe';$s.Save()"
-
-echo [SUCCESS] Desktop Shortcuts Created >> "%LOG_FILE%"
-
-:: Done
-echo Windows Automation Completed Successfully! >> "%LOG_FILE%"
-exit
+echo [INFO] All software installed successfully! >> %LOG_FILE%
+echo All software installed successfully!
+exit /b 0

@@ -1,142 +1,189 @@
-# Windows Setup Automation Script
-# Author: Adarsh
-# Version: 1.0
-# Silent, No prompts, Full logging
+# Define log file location
+$logFile = "$env:USERPROFILE\Desktop\windows_setup_log.txt"
 
-#==============================#
-# SETTINGS
-#==============================#
-$SoftwareDir = "D:\Software"
-$LogFile = "$env:USERPROFILE\Desktop\windows_setup_log.txt"
-
-#==============================#
-# FUNCTIONS
-#==============================#
-
-function Log-Info($Message) {
-    Write-Host "[INFO] $Message" -ForegroundColor Cyan
-    Add-Content -Path $LogFile -Value "[INFO] $Message"
+# Create a log function to log the progress
+Function Write-Log {
+    param (
+        [string]$message,
+        [string]$logType = "[INFO]"
+    )
+    $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    $logMessage = "$timestamp $logType $message"
+    Write-Output $logMessage
+    Add-Content -Path $logFile -Value $logMessage
 }
 
-function Log-Success($Message) {
-    Write-Host "[SUCCESS] $Message" -ForegroundColor Green
-    Add-Content -Path $LogFile -Value "[SUCCESS] $Message"
-}
-
-function Log-Error($Message) {
-    Write-Host "[ERROR] $Message" -ForegroundColor Red
-    Add-Content -Path $LogFile -Value "[ERROR] $Message"
-}
-
-function Check-Internet {
-    Log-Info "Checking Internet Connection..."
-    while (!(Test-Connection -ComputerName google.com -Count 1 -Quiet)) {
-        Log-Error "No Internet Connection. Retrying in 10 seconds..."
-        Start-Sleep -Seconds 10
-    }
-    Log-Success "Internet Connection is Active."
-}
-
-function Create-Software-Folder {
-    if (!(Test-Path -Path $SoftwareDir)) {
-        New-Item -ItemType Directory -Path $SoftwareDir -Force | Out-Null
-        Log-Success "Created Software Folder at $SoftwareDir"
-    } else {
-        Log-Info "Software Folder already exists."
-    }
-}
-
-function Download-And-Install ($Name, $Url, $InstallerArgs) {
-    $InstallerPath = "$SoftwareDir\$Name.exe"
-    Log-Info "Downloading $Name..."
+# Check if the computer is connected to the internet
+Function Test-InternetConnection {
+    Write-Log "Checking Internet Connection..."
     try {
-        Invoke-WebRequest -Uri $Url -OutFile $InstallerPath -UseBasicParsing
-        Log-Success "$Name downloaded successfully."
+        $response = Test-Connection -ComputerName google.com -Count 1 -Quiet
+        If ($response) {
+            Write-Log "Internet is connected."
+            return $true
+        }
+        else {
+            Write-Log "No Internet connection detected."
+            return $false
+        }
     }
     catch {
-        Log-Error "Failed to download $Name."
-        return
-    }
-    
-    Log-Info "Installing $Name..."
-    try {
-        Start-Process -FilePath $InstallerPath -ArgumentList $InstallerArgs -Wait -NoNewWindow
-        Log-Success "$Name installed successfully."
-    }
-    catch {
-        Log-Error "Failed to install $Name."
-    }
-
-    Create-Shortcut $Name
-}
-
-function Create-Shortcut($Name) {
-    $WshShell = New-Object -ComObject WScript.Shell
-    $ProgramPath = (Get-ChildItem "C:\Program Files*\*\$Name.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-    if (!$ProgramPath) {
-        $ProgramPath = (Get-ChildItem "C:\Program Files*\*\*$Name*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-    }
-    if ($ProgramPath) {
-        $ShortcutPath = "$env:USERPROFILE\Desktop\$Name.lnk"
-        $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-        $Shortcut.TargetPath = $ProgramPath
-        $Shortcut.Save()
-        Log-Success "Shortcut for $Name created on Desktop."
-    } else {
-        Log-Error "Executable for $Name not found, shortcut not created."
+        Write-Log "Error while checking internet connection: $_"
+        return $false
     }
 }
 
-function Update-Windows {
-    Log-Info "Starting Windows Update..."
-    Install-Module PSWindowsUpdate -Force -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+# Function to handle retries for failed downloads
+Function Retry-Download {
+    param (
+        [string]$url,
+        [string]$destination,
+        [int]$maxRetries = 2
+    )
+    $retries = 0
+    $success = $false
+    while ($retries -le $maxRetries) {
+        try {
+            Write-Log "Downloading $url..."
+            Invoke-WebRequest -Uri $url -OutFile $destination
+            $success = $true
+            Write-Log "Download successful: $destination"
+            break
+        }
+        catch {
+            $retries++
+            Write-Log "Download failed (Attempt $retries of $maxRetries). Error: $_"
+            if ($retries -gt $maxRetries) {
+                Write-Log "Max retries reached. Aborting download."
+            }
+        }
+    }
+    return $success
+}
+
+# Start Windows Update
+Write-Log "Starting Windows Update..."
+try {
     Import-Module PSWindowsUpdate
     Get-WindowsUpdate -AcceptAll -Install -AutoReboot | Out-Null
-    Log-Success "Windows Update Completed."
+    Write-Log "Windows Update completed successfully."
+}
+catch {
+    Write-Log "Error during Windows Update: $_" -logType "[ERROR]"
 }
 
-function Disable-Sleep {
-    Log-Info "Disabling Sleep Settings..."
-    powercfg -change -standby-timeout-ac 0
-    powercfg -change -standby-timeout-dc 0
-    powercfg -change -hibernate-timeout-ac 0
-    powercfg -change -hibernate-timeout-dc 0
-    Log-Success "Sleep disabled for both AC and Battery modes."
+# Disable sleep settings to never sleep
+Write-Log "Disabling sleep settings..."
+powercfg -change standby-timeout-ac 0
+powercfg -change standby-timeout-dc 0
+Write-Log "Sleep settings disabled successfully."
+
+# Disable Windows Firewall
+Write-Log "Disabling Windows Firewall..."
+Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+Write-Log "Firewall disabled for all profiles."
+
+# Start software installations
+$softwareFolder = "D:\Software"
+If (!(Test-Path -Path $softwareFolder)) {
+    Write-Log "Creating Software directory on D:..."
+    New-Item -ItemType Directory -Path $softwareFolder | Out-Null
 }
 
-function Disable-Firewall {
-    Log-Info "Disabling Windows Firewall..."
-    Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
-    Log-Success "Firewall disabled for all profiles."
+# Chrome Installation
+Write-Log "Downloading Google Chrome..."
+$chromeInstaller = "$softwareFolder\ChromeSetup.exe"
+$chromeUrl = "https://dl.google.com/chrome/install/standalonesetup64.exe"
+if (Retry-Download -url $chromeUrl -destination $chromeInstaller) {
+    Write-Log "Installing Google Chrome..."
+    Start-Process -FilePath $chromeInstaller -Args "/silent /install" -Wait
+    Write-Log "Google Chrome installed successfully."
+} else {
+    Write-Log "Google Chrome installation failed." -logType "[ERROR]"
 }
 
-#==============================#
-# START EXECUTION
-#==============================#
+# Firefox Installation
+Write-Log "Downloading Firefox..."
+$firefoxInstaller = "$softwareFolder\FirefoxSetup.exe"
+$firefoxUrl = "https://download.mozilla.org/?product=firefox-latest&os=win&lang=en-US"
+if (Retry-Download -url $firefoxUrl -destination $firefoxInstaller) {
+    Write-Log "Installing Firefox..."
+    Start-Process -FilePath $firefoxInstaller -Args "/silent" -Wait
+    Write-Log "Firefox installed successfully."
+} else {
+    Write-Log "Firefox installation failed." -logType "[ERROR]"
+}
 
-Clear-Host
-Log-Info "========================================="
-Log-Info "   Windows Setup Automation Started      "
-Log-Info "========================================="
+# WinRAR Installation
+Write-Log "Downloading WinRAR..."
+$winrarInstaller = "$softwareFolder\WinRARSetup.exe"
+$winrarUrl = "https://www.rarlab.com/rar/winrar-x64-611.exe"
+if (Retry-Download -url $winrarUrl -destination $winrarInstaller) {
+    Write-Log "Installing WinRAR..."
+    Start-Process -FilePath $winrarInstaller -Args "/S" -Wait
+    Write-Log "WinRAR installed successfully."
+} else {
+    Write-Log "WinRAR installation failed." -logType "[ERROR]"
+}
 
-Check-Internet
-Create-Software-Folder
-Update-Windows
-Disable-Sleep
-Disable-Firewall
+# UltraViewer Installation
+Write-Log "Downloading UltraViewer..."
+$ultraviewerInstaller = "$softwareFolder\UltraViewerSetup.exe"
+$ultraviewerUrl = "https://www.ultraviewer.net/download/UltraViewerSetup.exe"
+if (Retry-Download -url $ultraviewerUrl -destination $ultraviewerInstaller) {
+    Write-Log "Installing UltraViewer..."
+    Start-Process -FilePath $ultraviewerInstaller -Args "/silent" -Wait
+    Write-Log "UltraViewer installed successfully."
+} else {
+    Write-Log "UltraViewer installation failed." -logType "[ERROR]"
+}
 
-# --- Software List to Install
-Download-And-Install -Name "GoogleChrome" -Url "https://dl.google.com/chrome/install/latest/chrome_installer.exe" -InstallerArgs "/silent /install"
-Download-And-Install -Name "Firefox" -Url "https://download.mozilla.org/?product=firefox-latest-ssl&os=win64&lang=en-US" -InstallerArgs "-ms"
-Download-And-Install -Name "WinRAR" -Url "https://www.rarlab.com/rar/winrar-x64.exe" -InstallerArgs "/S"
-Download-And-Install -Name "UltraViewer" -Url "https://ultraviewer.net/en/UltraViewer_setup_en.exe" -InstallerArgs "/VERYSILENT"
-Download-And-Install -Name "AnyDesk" -Url "https://download.anydesk.com/AnyDesk.exe" -InstallerArgs "--install --start-with-win --silent"
-Download-And-Install -Name "NoMachine" -Url "https://download.nomachine.com/download/7.10/Windows/nomachine_7.10.1_1_x64.exe" -InstallerArgs "/silent"
-Download-And-Install -Name "doPDF" -Url "https://download.dopdf.com/download/setup/dopdf-full.exe" -InstallerArgs "/VERYSILENT"
-Download-And-Install -Name "TigerVNC" -Url "https://bintray.com/tigervnc/stable/download_file?file_path=tigervnc-1.11.0.exe" -InstallerArgs "/S"
+# AnyDesk Installation
+Write-Log "Downloading AnyDesk..."
+$anydeskInstaller = "$softwareFolder\AnyDeskSetup.exe"
+$anydeskUrl = "https://download.anydesk.com/AnyDesk.exe"
+if (Retry-Download -url $anydeskUrl -destination $anydeskInstaller) {
+    Write-Log "Installing AnyDesk..."
+    Start-Process -FilePath $anydeskInstaller -Args "/S" -Wait
+    Write-Log "AnyDesk installed successfully."
+} else {
+    Write-Log "AnyDesk installation failed." -logType "[ERROR]"
+}
 
-Log-Success "All operations completed. Please review $LogFile for details."
+# NoMachine Installation
+Write-Log "Downloading NoMachine..."
+$nomachineInstaller = "$softwareFolder\NoMachineSetup.exe"
+$nomachineUrl = "https://www.nomachine.com/download/download&id=1"
+if (Retry-Download -url $nomachineUrl -destination $nomachineInstaller) {
+    Write-Log "Installing NoMachine..."
+    Start-Process -FilePath $nomachineInstaller -Args "/silent" -Wait
+    Write-Log "NoMachine installed successfully."
+} else {
+    Write-Log "NoMachine installation failed." -logType "[ERROR]"
+}
 
-Log-Info "========================================="
-Log-Info "   Windows Setup Automation Completed     "
-Log-Info "========================================="
+# doPDF Installation
+Write-Log "Downloading doPDF..."
+$doPdfInstaller = "$softwareFolder\doPDFSetup.exe"
+$doPdfUrl = "https://www.dopdf.com/download/dopdf-full.exe"
+if (Retry-Download -url $doPdfUrl -destination $doPdfInstaller) {
+    Write-Log "Installing doPDF..."
+    Start-Process -FilePath $doPdfInstaller -Args "/silent" -Wait
+    Write-Log "doPDF installed successfully."
+} else {
+    Write-Log "doPDF installation failed." -logType "[ERROR]"
+}
+
+# TigerVNC Installation
+Write-Log "Downloading TigerVNC..."
+$tigervncInstaller = "$softwareFolder\TigervncSetup.exe"
+$tigervncUrl = "https://github.com/TigerVNC/tigervnc/releases/download/v1.11.0/TigerVNC-1.11.0-x64.exe"
+if (Retry-Download -url $tigervncUrl -destination $tigervncInstaller) {
+    Write-Log "Installing TigerVNC..."
+    Start-Process -FilePath $tigervncInstaller -Args "/silent" -Wait
+    Write-Log "TigerVNC installed successfully."
+} else {
+    Write-Log "TigerVNC installation failed." -logType "[ERROR]"
+}
+
+Write-Log "All operations completed. Please check the log file for any errors."

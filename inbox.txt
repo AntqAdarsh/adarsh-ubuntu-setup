@@ -1,1 +1,3 @@
-iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/AntqAdarsh/setup/refs/heads/main/adarsh_windows_testing.ps1'))
+Ubuntu - bash <(curl -sSL https://raw.githubusercontent.com/AntqAdarsh/setup/refs/heads/main/adarsh_windows_testing.sh)
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+Windows - iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/AntqAdarsh/setup/refs/heads/main/adarsh_windows_testing.ps1'))

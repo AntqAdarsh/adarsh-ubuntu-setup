@@ -541,14 +541,11 @@ main() {
     echo -e "\n$(date '+%Y-%m-%d %H:%M:%S') Adarsh Setup Completed"
     
     # Reboot prompt
-    read -rp $'\nDo you want to reboot now? (y/n): ' reboot_choice
-    if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
-        echo "Rebooting in 5 seconds..."
-        sleep 5
+   
+        echo "Rebooting in 10 seconds..."
+        sleep 10
         sudo reboot
-    else
-        echo "Please reboot manually when convenient."
-    fi
+    
 }
 
 # Start execution

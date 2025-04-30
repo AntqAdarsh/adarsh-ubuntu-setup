@@ -1,1 +1,1 @@
-iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/yourusername/yourrepo/main/WindowsSetupAutomation.ps1'))
+iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/AntqAdarsh/setup/refs/heads/main/adarsh_windows_testing.ps1'))

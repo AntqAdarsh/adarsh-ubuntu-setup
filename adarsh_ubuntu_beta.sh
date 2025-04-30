@@ -162,32 +162,34 @@ fi
 # Detect HP USB Printer
 header "Waiting for USB Printer Detection"
 echo "Please connect the USB printer..."
+printer_detected=false
 for i in {1..10}; do
   if lsusb | grep -i hp; then
     echo "HP USB Printer detected. Proceeding with setup..."
+    printer_detected=true
     break
   fi
   sleep 5
-  if [ $i -eq 10 ]; then
-    log_failure "No HP USB printer detected. Exiting setup."
-    exit 1
-  fi
   echo "Waiting for printer to be connected... ($i/10)"
 done
 
-# Running HP Setup via Expect
-header "Running HP Setup"
-sudo -u "$SUDO_USER" expect <<EOF
+if [ "$printer_detected" = true ]; then
+  # Running HP Setup via Expect
+  header "Running HP Setup"
+  sudo -u "$SUDO_USER" expect <<EOF
 spawn hp-setup -i
 expect {
   "Found USB printers*" { send "1\r"; exp_continue }
   eof
 }
 EOF
-if [ $? -eq 0 ]; then
-  log_success "HP Setup Completed"
+  if [ $? -eq 0 ]; then
+    log_success "HP Setup Completed"
+  else
+    log_failure "HP Setup Failed"
+  fi
 else
-  log_failure "HP Setup Failed"
+  log_failure "No HP USB printer detected. Skipping HP Setup."
 fi
 
 # Creating User Depo

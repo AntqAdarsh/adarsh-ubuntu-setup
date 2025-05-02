@@ -1,11 +1,14 @@
 #!/bin/bash
+set -e
 
-# Password protection
+# Password protection (hashed for security)
+SCRIPT_HASHED_PASS="4b1c2e77cd40ce749d2b2d95bc902d1233aeae2696ed493808c3de2d02d9d4cb" # echo -n 'adarsh@123' | sha256sum
+
 read -sp "Enter script password: " input_pass
 echo
-SCRIPT_PASSWORD="adarsh@123"
+input_hash=$(echo -n "$input_pass" | sha256sum | awk '{print $1}')
 
-if [ "$input_pass" != "$SCRIPT_PASSWORD" ]; then
+if [ "$input_hash" != "$SCRIPT_HASHED_PASS" ]; then
   echo "Incorrect password. Exiting..."
   exit 1
 fi
@@ -38,7 +41,7 @@ check_and_log() {
   fi
 }
 
-# Function to pin app to Ubuntu Dock
+# Pin to Dock function
 pin_to_dock() {
   local app=$1
   local desktop_file
@@ -47,7 +50,6 @@ pin_to_dock() {
   if [[ -n "$desktop_file" ]]; then
     echo "[INFO] Pinning $app to Dock..."
     current_favorites=$(gsettings get org.gnome.shell favorite-apps)
-
     if [[ "$current_favorites" != *"$app.desktop"* ]]; then
       new_favorites=$(echo "$current_favorites" | sed "s/]$/, '$app.desktop']/")
       gsettings set org.gnome.shell favorite-apps "$new_favorites"
@@ -60,87 +62,61 @@ pin_to_dock() {
   fi
 }
 
-# Disabling sleep settings
+# Disable Sleep
 header "Disabling Sleep Settings"
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'
 gsettings set org.gnome.desktop.session idle-delay 0
 log_success "Sleep settings set to never sleep"
 
-# System update & upgrade
+# Update System
 header "System Update"
 sudo apt-get clean
 sudo apt-get update --fix-missing
 sudo apt-get upgrade -y
 sudo apt-get dist-upgrade -y
 sudo apt-get autoremove -y
-if [ $? -eq 0 ]; then
-  log_success "System update and upgrade"
-else
-  log_failure "System update and upgrade"
-fi
+log_success "System update and upgrade"
 
-# Installing Basic Dependencies
+# Install Basic Packages
 header "Installing Basic Dependencies"
 sudo apt-get install -y curl wget git software-properties-common apt-transport-https ca-certificates gnupg lsb-release expect cups rar unrar cups-pdf
 check_and_log curl "Curl Installed"
 check_and_log wget "Wget Installed"
 
-# Installing Google Chrome
+# Install Google Chrome
 header "Installing Google Chrome"
 sudo wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 sudo dpkg -i /tmp/google-chrome.deb || sudo apt-get install -f -y
 check_and_log google-chrome "Google Chrome Installed"
+pin_to_dock "google-chrome"
 
-# Pin Google Chrome
-if command -v google-chrome >/dev/null 2>&1; then
-  pin_to_dock "google-chrome"
-else
-  echo "[WARNING] Google Chrome not found, skipping pinning."
-fi
-
-# Installing LibreOffice
+# Install LibreOffice
 header "Installing LibreOffice"
 sudo apt-get install -y libreoffice
 check_and_log libreoffice "LibreOffice Installed"
 
-# Installing AnyDesk
+# Install AnyDesk
 header "Installing AnyDesk"
 wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo gpg --dearmor -o /usr/share/keyrings/anydesk.gpg
 echo "deb [signed-by=/usr/share/keyrings/anydesk.gpg] http://deb.anydesk.com/ all main" | sudo tee /etc/apt/sources.list.d/anydesk.list
 sudo apt-get update && sudo apt-get install -y anydesk
 check_and_log anydesk "AnyDesk Installed"
+pin_to_dock "anydesk"
 
-# Pin AnyDesk
-if command -v anydesk >/dev/null 2>&1; then
-  pin_to_dock "anydesk"
-else
-  echo "[WARNING] AnyDesk not found, skipping pinning."
-fi
-
-# Installing RustDesk (Working Version)
+# Install RustDesk
 header "Installing RustDesk"
 sudo wget https://github.com/rustdesk/rustdesk/releases/download/1.2.6/rustdesk-1.2.6-x86_64.deb -O /tmp/rustdesk.deb
-sudo apt install -fy /tmp/rustdesk.deb
-if command -v rustdesk &>/dev/null; then
-  log_success "RustDesk Installed"
-else
-  log_failure "RustDesk Installation Failed"
-fi
+sudo dpkg -i /tmp/rustdesk.deb || sudo apt-get install -f -y
+check_and_log rustdesk "RustDesk Installed"
+pin_to_dock "rustdesk"
 
-# Pin RustDesk
-if command -v rustdesk >/dev/null 2>&1; then
-  pin_to_dock "rustdesk"
-else
-  echo "[WARNING] RustDesk not found, skipping pinning."
-fi
-
-# Installing HPLIP & GUI
+# Install HPLIP
 header "Installing HPLIP & GUI"
 sudo apt-get install -y hplip hplip-gui
 check_and_log hp-toolbox "HPLIP & GUI Installed"
 
-# Detect HP USB Printer
+# Detect USB Printer
 header "Waiting for USB Printer Detection"
 echo "Please connect the USB printer..."
 printer_detected=false
@@ -154,8 +130,42 @@ for i in {1..10}; do
   echo "Waiting for printer to be connected... ($i/10)"
 done
 
+# HP Plugin Installation via Expect
+header "Installing HP Plugin"
+sudo -u "$SUDO_USER" expect <<'EOF'
+log_user 1
+set timeout -1
+spawn hp-plugin -i
+
+expect {
+  "*Do you accept the license agreement*" {
+    send "a\r"
+    exp_continue
+  }
+  "*Download the plugin from HP*" {
+    send "d\r"
+    exp_continue
+  }
+  "*Is this OK*" {
+    send "y\r"
+    exp_continue
+  }
+  "*Press 'q' to quit*" {
+    send "q"
+    exp_continue
+  }
+  eof
+}
+EOF
+
+if [ $? -eq 0 ]; then
+  log_success "HP Plugin Installed Successfully"
+else
+  log_failure "HP Plugin Installation Failed"
+fi
+
+# HP Setup & Test Print
 if [ "$printer_detected" = true ]; then
-  # Run HP Setup via Expect
   header "Running HP Setup"
   sudo -u "$SUDO_USER" expect <<EOF
 log_user 1
@@ -176,20 +186,14 @@ EOF
     log_failure "HP Setup Failed"
   fi
 
-  # Always Send Test Print only once
   header "Printing Test Page"
   echo "Test Print from Adarsh Setup Script" > /tmp/testprint.txt
-  lp /tmp/testprint.txt
-  if [ $? -eq 0 ]; then
-    log_success "Test print sent successfully"
-  else
-    log_failure "Failed to send test print"
-  fi
+  lp /tmp/testprint.txt && log_success "Test print sent successfully" || log_failure "Failed to send test print"
 else
   log_failure "No HP USB printer detected. Skipping HP Setup and Test Print."
 fi
 
-# Creating User Depo
+# Create User 'Depo'
 header "Creating User"
 sudo useradd -m -s /bin/bash Depo 2>/dev/null
 if id "Depo" &>/dev/null; then
@@ -213,23 +217,23 @@ done
 
 echo -e "\nAdarsh Setup Completed! Log available at $LOG_FILE"
 
-# Copy log to current user's Desktop
+# Copy Log to SUDO_USER's Desktop
 header "Copying Log File to Desktop"
-DESKTOP_PATH_CURRENT="$HOME/Desktop"
+USER_DESKTOP="/home/$SUDO_USER/Desktop"
 FINAL_LOG_NAME="adarshsetup-log.txt"
 
-if [ -d "$DESKTOP_PATH_CURRENT" ]; then
-  cp "$LOG_FILE" "$DESKTOP_PATH_CURRENT/$FINAL_LOG_NAME" 2>/dev/null
-  if [ $? -eq 0 ]; then
-    log_success "Log copied to current user's Desktop"
-  else
-    log_failure "Failed to copy log to current user's Desktop"
-  fi
+if [ -d "$USER_DESKTOP" ]; then
+  cp "$LOG_FILE" "$USER_DESKTOP/$FINAL_LOG_NAME" && \
+  log_success "Log copied to $USER_DESKTOP/$FINAL_LOG_NAME" || \
+  log_failure "Failed to copy log to Desktop"
 else
-  log_failure "Current user's Desktop directory not found"
+  log_failure "Could not locate $USER_DESKTOP"
 fi
 
-# Reboot in 5 seconds
+# Clean Temp Files
+rm -f /tmp/google-chrome.deb /tmp/rustdesk.deb /tmp/testprint.txt
+
+# Reboot
 echo -e "\nRebooting in 5 seconds..."
 sleep 5
 sudo reboot

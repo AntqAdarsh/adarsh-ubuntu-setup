@@ -148,13 +148,28 @@ check_and_log hp-toolbox "HPLIP & GUI Installed"
 # Installing HP Plugin via Expect
 header "Installing HP Plugin"
 sudo -u "$SUDO_USER" expect <<EOF
+log_user 1
 spawn hp-plugin -i
-expect "Do you accept the license agreement*" { send "y\r" }
-expect "Download and install the plug-in*" { send "d\r" }
-expect eof
+
+expect {
+  "*Download the plugin from*" {
+    send "d\r"
+    exp_continue
+  }
+  "*Do you accept the license agreement?*" {
+    send "a\r"
+    exp_continue
+  }
+  "*Is this OK* (y=yes, n=no)?" {
+    send "y\r"
+    exp_continue
+  }
+  eof
+}
 EOF
+
 if [ $? -eq 0 ]; then
-  log_success "HP Plugin Installed"
+  log_success "HP Plugin Installed Successfully"
 else
   log_failure "HP Plugin Installation Failed"
 fi

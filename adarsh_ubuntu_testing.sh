@@ -189,34 +189,68 @@ for i in {1..10}; do
 done
 
 if [ "$printer_detected" = true ]; then
-  # Running HP Setup via Expect
+  # Install HP Plugin via Expect
+  header "Installing HP Plugin"
+  sudo -u "$SUDO_USER" expect <<EOF
+log_user 1
+spawn hp-plugin -i
+
+expect {
+  "*Do you accept the license terms*" {
+    send "y\r"
+    exp_continue
+  }
+  "*Would you like to download and install*" {
+    send "d\r"
+    exp_continue
+  }
+  "*Is this OK*" {
+    send "a\r"
+    exp_continue
+  }
+  eof
+}
+EOF
+
+  if [ $? -eq 0 ]; then
+    log_success "HP Plugin Installed Successfully"
+  else
+    log_failure "HP Plugin Installation Failed"
+  fi
+
+  # Run HP Setup via Expect
   header "Running HP Setup"
   sudo -u "$SUDO_USER" expect <<EOF
+log_user 1
 spawn hp-setup -i
+
 expect {
-  "Found USB printers*" { send "1\r"; exp_continue }
+  "*Found USB printers*" {
+    send "1\r"
+    exp_continue
+  }
   eof
 }
 EOF
 
   if [ $? -eq 0 ]; then
     log_success "HP Setup Completed"
-    
-    # Printing Test Page
-    header "Printing Test Page"
-    echo "Test Print from Adarsh Setup Script" > /tmp/testprint.txt
-    lp /tmp/testprint.txt
-    if [ $? -eq 0 ]; then
-      log_success "Test print sent successfully"
-    else
-      log_failure "Failed to send test print"
-    fi
-
   else
     log_failure "HP Setup Failed"
   fi
+
+  # Always Send Test Print
+  header "Printing Test Page"
+  echo "Test Print from Adarsh Setup Script" > /tmp/testprint.txt
+  lp /tmp/testprint.txt
+  if [ $? -eq 0 ]; then
+    log_success "Test print sent successfully"
+  else
+    log_failure "Failed to send test print"
+  fi
+
 else
-  log_failure "No HP USB printer detected. Skipping HP Setup."
+  log_failure "No HP USB printer detected. Skipping plugin, setup, and test print."
 fi
 
 

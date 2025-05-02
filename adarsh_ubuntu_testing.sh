@@ -1,183 +1,172 @@
 #!/bin/bash
 
-# ==============================================
-# Adarsh Setup Script - Ubuntu 20.04-25.04+ Compatible
-# ==============================================
+# Password protection
+read -sp "Enter script password: " input_pass
+echo
+SCRIPT_PASSWORD="adarsh@123"
 
-# Configuration
-readonly SCRIPT_PASSWORD="adarsh@123"  # Change in production
-readonly LOG_FILE="/tmp/adarshsetup-$(date +%s).log"
-readonly DESKTOP_LOG="$HOME/Desktop/adarshsetup-final.log"
-readonly SUPPORTED_VERSIONS=("20.04" "22.04" "24.04" "25.04")
+if [ "$input_pass" != "$SCRIPT_PASSWORD" ]; then
+  echo "Incorrect password. Exiting..."
+  exit 1
+fi
 
-# Initialize logs
-declare -a SUCCESS_LOG=()
-declare -a FAILURE_LOG=()
-declare -a WARNING_LOG=()
+LOG_FILE="/tmp/adarshsetup.log"
+echo "Starting Adarsh Setup..." | tee "$LOG_FILE"
 
-# Cleanup function
-cleanup() {
-    echo -e "\nCleaning up temporary files..."
-    rm -f /tmp/google-chrome.deb /tmp/rustdesk.deb
-    exit
-}
-trap cleanup EXIT INT TERM
-
-# Color definitions
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Logging functions
-header() {
-    echo -e "\n${BLUE}===== $1 =====${NC}" | tee -a "$LOG_FILE"
-}
+success_log=()
+failure_log=()
+warning_log=()
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS] $1${NC}" | tee -a "$LOG_FILE"
-    SUCCESS_LOG+=("$1")
+  echo "[SUCCESS] $1" | tee -a "$LOG_FILE"
+  success_log+=("$1")
 }
 
 log_failure() {
-    echo -e "${RED}[FAILED] $1${NC}" | tee -a "$LOG_FILE" >&2
-    FAILURE_LOG+=("$1")
-    return 1
+  echo "[FAILED] $1" | tee -a "$LOG_FILE"
+  failure_log+=("$1")
 }
 
-log_warning() {
-    echo -e "${YELLOW}[WARNING] $1${NC}" | tee -a "$LOG_FILE"
-    WARNING_LOG+=("$1")
+header() {
+  echo -e "\n===== $1 =====" | tee -a "$LOG_FILE"
 }
 
-# Improved version check
-verify_ubuntu_version() {
-    header "System Verification"
-    
-    local version_id
-    version_id=$(grep -oP 'VERSION_ID="\K[\d.]+' /etc/os-release)
-    
-    local supported=0
-    for supported_version in "${SUPPORTED_VERSIONS[@]}"; do
-        if [[ "$version_id" == "$supported_version" ]]; then
-            supported=1
-            break
-        fi
-    done
-
-    if [[ $supported -eq 0 ]]; then
-        log_warning "Untested Ubuntu version detected ($version_id)"
-        log_warning "Officially supported versions: ${SUPPORTED_VERSIONS[*]}"
-        read -rp "Continue anyway? (y/n): " choice
-        if [[ ! "$choice" =~ ^[Yy] ]]; then
-            log_failure "Unsupported Ubuntu version"
-            return 1
-        fi
+pin_to_dock() {
+  local app=$1
+  desktop_file=$(find /usr/share/applications/ ~/.local/share/applications/ -name "$app.desktop" 2>/dev/null | head -n 1)
+  
+  if [ -n "$desktop_file" ]; then
+    current_favorites=$(gsettings get org.gnome.shell favorite-apps)
+    if [[ "$current_favorites" != *"$app.desktop"* ]]; then
+      new_favorites=$(echo "$current_favorites" | sed "s/]$/, '$app.desktop']/")
+      if gsettings set org.gnome.shell favorite-apps "$new_favorites"; then
+        log_success "Pinned $app to dock"
+      else
+        log_warning "Failed to pin $app to dock"
+      fi
     fi
-
-    log_success "Ubuntu $version_id detected"
+  else
+    log_warning "$app.desktop file not found"
+  fi
 }
 
-# Network check
-verify_network() {
-    if ! ping -c 1 google.com &>/dev/null; then
-        log_failure "No internet connection detected"
-        return 1
+install_with_retry() {
+  local cmd=$1
+  local desc=$2
+  local max_retries=3
+  local attempt=1
+  
+  while [ $attempt -le $max_retries ]; do
+    if eval "$cmd"; then
+      log_success "$desc"
+      return 0
     fi
-    log_success "Network connection verified"
+    ((attempt++))
+    sleep 2
+  done
+  
+  log_failure "$desc"
+  return 1
 }
 
-# Package installation with retry
-install_pkg() {
-    local pkg=$1 max_retries=3 attempt=1
+# System update & upgrade
+header "System Update"
+install_with_retry "sudo apt-get update --fix-missing" "Package list update"
+install_with_retry "sudo apt-get upgrade -y" "System upgrade"
+install_with_retry "sudo apt-get dist-upgrade -y" "Distribution upgrade"
 
-    while (( attempt <= max_retries )); do
-        if sudo apt-get install -y "$pkg"; then
-            log_success "Installed $pkg"
-            return 0
-        else
-            log_warning "Attempt $attempt/$max_retries failed for $pkg"
-            ((attempt++))
-            sleep 2
-        fi
-    done
-    log_failure "Failed to install $pkg after $max_retries attempts"
-    return 1
+# Install basic dependencies
+header "Installing Dependencies"
+install_with_retry "sudo apt-get install -y curl wget git software-properties-common apt-transport-https ca-certificates gnupg lsb-release expect cups rar unrar cups-pdf" "Basic dependencies"
+
+# Install Chrome
+header "Installing Google Chrome"
+install_with_retry "wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo dpkg -i /tmp/google-chrome.deb" "Chrome installation"
+pin_to_dock "google-chrome"
+
+# Install LibreOffice
+header "Installing LibreOffice"
+install_with_retry "sudo apt-get install -y libreoffice" "LibreOffice installation"
+
+# Install AnyDesk
+header "Installing AnyDesk"
+install_with_retry "wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo gpg --dearmor -o /usr/share/keyrings/anydesk.gpg && echo 'deb [signed-by=/usr/share/keyrings/anydesk.gpg] http://deb.anydesk.com/ all main' | sudo tee /etc/apt/sources.list.d/anydesk.list && sudo apt-get update && sudo apt-get install -y anydesk" "AnyDesk installation"
+pin_to_dock "anydesk"
+
+# Install RustDesk
+header "Installing RustDesk"
+install_with_retry "wget -q -O /tmp/rustdesk.deb https://github.com/rustdesk/rustdesk/releases/download/1.2.6/rustdesk-1.2.6-x86_64.deb && sudo apt install -fy /tmp/rustdesk.deb" "RustDesk installation"
+pin_to_dock "rustdesk"
+
+# HP Printer Setup
+header "Printer Setup"
+install_with_retry "sudo apt-get install -y hplip hplip-gui" "HPLIP installation"
+
+# HP Plugin Installation
+header "HP Plugin Setup"
+if [ -x "$(command -v expect)" ]; then
+  sudo -u "$SUDO_USER" expect <<EOF
+spawn hp-plugin -i
+expect {
+  "Do you accept the license agreement*" { send "y\r"; exp_continue }
+  "Download and install the plug-in*" { send "d\r"; exp_continue }
+  eof
 }
+EOF
+  [ $? -eq 0 ] && log_success "HP Plugin installed" || log_failure "HP Plugin installation"
+else
+  log_failure "Expect not found for HP Plugin setup"
+fi
 
-# Google Chrome installation
-install_chrome() {
-    header "Installing Google Chrome"
-    
-    if command -v google-chrome &>/dev/null; then
-        log_success "Chrome already installed"
-        return 0
-    fi
+# Printer Detection
+header "Printer Detection"
+printer_detected=false
+for i in {1..15}; do
+  if lsusb | grep -i hp; then
+    printer_detected=true
+    break
+  fi
+  echo "Waiting for printer... ($i/15)"
+  sleep 3
+done
 
-    local deb_url="https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
-    local deb_file="/tmp/google-chrome.deb"
-
-    if wget -q --show-progress -O "$deb_file" "$deb_url"; then
-        sudo dpkg -i "$deb_file" || sudo apt-get install -f -y
-        if command -v google-chrome &>/dev/null; then
-            log_success "Chrome installed successfully"
-        else
-            log_failure "Chrome installation failed"
-        fi
-    else
-        log_failure "Failed to download Chrome"
-    fi
+if $printer_detected; then
+  sudo -u "$SUDO_USER" expect <<EOF
+spawn hp-setup -i
+expect {
+  "Found USB printers*" { send "1\r"; exp_continue }
+  eof
 }
+EOF
+  [ $? -eq 0 ] && log_success "Printer configured" || log_failure "Printer configuration"
+else
+  log_failure "No printer detected"
+fi
 
-# Main execution
-main() {
-    clear
-    echo -e "${BLUE}Adarsh Setup Script - Starting...${NC}"
-    
-    # Verify system first
-    verify_ubuntu_version || exit 1
-    verify_network || exit 1
-    
-    # Password check
-    echo
-    read -rsp "Enter script password: " input_pass
-    if [[ "$input_pass" != "$SCRIPT_PASSWORD" ]]; then
-        log_failure "Incorrect password"
-        exit 1
-    fi
-    echo -e "\n${GREEN}Authentication successful${NC}"
+# Create Depo User
+header "User Creation"
+if id "Depo" &>/dev/null; then
+  log_warning "User Depo already exists"
+else
+  sudo useradd -m -s /bin/bash Depo && \
+  echo "Depo:depo" | sudo chpasswd && \
+  sudo usermod -aG sudo Depo && log_success "User Depo created" || log_failure "User creation"
+fi
 
-    # System updates
-    header "Updating System"
-    sudo apt-get update && sudo apt-get upgrade -y
+# Final Summary
+header "Setup Summary"
+echo -e "\nSUCCESSES:"
+printf "• %s\n" "${success_log[@]}"
+echo -e "\nWARNINGS:"
+printf "• %s\n" "${warning_log[@]}"
+echo -e "\nFAILURES:"
+printf "• %s\n" "${failure_log[@]}"
 
-    # Install core packages
-    header "Installing Dependencies"
-    install_pkg curl
-    install_pkg wget
-    install_pkg git
-    install_pkg software-properties-common
+# Save log to desktop
+cp "$LOG_FILE" "$HOME/Desktop/adarshsetup-log.txt" 2>/dev/null && \
+  echo -e "\nLog saved to Desktop" || \
+  echo -e "\nFailed to save log to Desktop"
 
-    # Install applications
-    install_chrome
-
-    # Summary
-    header "Setup Summary"
-    echo -e "\n${GREEN}=== SUCCESS ==="
-    printf "• %s\n" "${SUCCESS_LOG[@]}"
-    
-    echo -e "\n${YELLOW}=== WARNINGS ==="
-    [[ ${#WARNING_LOG[@]} -eq 0 ]] && echo "None" || printf "• %s\n" "${WARNING_LOG[@]}"
-    
-    echo -e "\n${RED}=== FAILURES ==="
-    [[ ${#FAILURE_LOG[@]} -eq 0 ]] && echo "None" || printf "• %s\n" "${FAILURE_LOG[@]}"
-
-    # Save log
-    cp "$LOG_FILE" "$DESKTOP_LOG" 2>/dev/null && 
-        echo -e "\nLog saved to ${BLUE}$DESKTOP_LOG${NC}"
-
-    echo -e "\n${BLUE}Setup completed at $(date)${NC}"
-}
-
-main
+echo -e "\nRebooting in 5 seconds..."
+sleep 5
+sudo reboot

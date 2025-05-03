@@ -137,20 +137,20 @@ set timeout -1
 spawn hp-plugin -i
 
 expect {
-  "*Do you accept the license agreement*" {
+  -re ".*Do you accept the license agreement.*" {
     send "a\r"
     exp_continue
   }
-  "*Download the plugin from HP*" {
+  -re ".*Download the plugin from HP.*" {
     send "d\r"
     exp_continue
   }
-  "*Is this OK*" {
+  -re ".*Is this OK.*" {
     send "y\r"
     exp_continue
   }
-  "*Press 'q' to quit*" {
-    send "q"
+  -re ".*Press 'q' to quit.*" {
+    send "q\r"
     exp_continue
   }
   eof

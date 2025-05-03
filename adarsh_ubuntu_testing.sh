@@ -1,17 +1,16 @@
 #!/bin/bash
 set -e
 
-# Password protection (hashed for security)
-SCRIPT_HASHED_PASS="4b1c2e77cd40ce749d2b2d95bc902d1233aeae2696ed493808c3de2d02d9d4cb" # echo -n 'adarsh@123' | sha256sum
-
+# Password protection
 read -sp "Enter script password: " input_pass
 echo
-input_hash=$(echo -n "$input_pass" | sha256sum | awk '{print $1}')
+SCRIPT_PASSWORD="adarsh@123"
 
-if [ "$input_hash" != "$SCRIPT_HASHED_PASS" ]; then
+if [ "$input_pass" != "$SCRIPT_PASSWORD" ]; then
   echo "Incorrect password. Exiting..."
   exit 1
 fi
+
 
 LOG_FILE="/tmp/adarshsetup.log"
 echo "Starting Adarsh Setup..." | tee "$LOG_FILE"

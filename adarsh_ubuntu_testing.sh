@@ -148,7 +148,7 @@ check_and_log hp-toolbox "HPLIP & GUI Installed"
 # Installing HP Plugin via Expect
 header "Installing HP Plugin"
 sudo -u "$SUDO_USER" expect <<EOF
-spawn hp-plugin -i
+spawn sudo hp-plugin -i
 expect "Do you accept the license agreement*" { send "y\r" }
 expect "Download and install the plug-in*" { send "d\r" }
 expect eof
@@ -177,7 +177,7 @@ if [ "$printer_detected" = true ]; then
   # Running HP Setup via Expect
   header "Running HP Setup"
   sudo -u "$SUDO_USER" expect <<EOF
-spawn hp-setup -i
+spawn sudo hp-setup -i
 expect {
   "Found USB printers*" { send "1\r"; exp_continue }
   eof

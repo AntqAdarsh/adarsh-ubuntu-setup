@@ -147,11 +147,30 @@ check_and_log hp-toolbox "HPLIP & GUI Installed"
 
 # Installing HP Plugin via Expect
 header "Installing HP Plugin"
-sudo -u "$SUDO_USER" expect <<EOF
-spawn sudo hp-plugin -i
-expect "Do you accept the license agreement*" { send "y\r" }
-expect "Download and install the plug-in*" { send "d\r" }
-expect eof
+expect <<'EOF'
+log_user 1
+set timeout -1
+spawn hp-plugin -i --required --force
+
+expect {
+    "*Do you accept the license agreement*" {
+        send "a\r"
+        exp_continue
+    }
+    "*Download the plugin from HP*" {
+        send "d\r"
+        exp_continue
+    }
+    "*Is this OK*" {
+        send "y\r"
+        exp_continue
+    }
+    "*Press 'q' to quit*" {
+        send "q\r"
+        exp_continue
+    }
+    eof
+}
 EOF
 if [ $? -eq 0 ]; then
   log_success "HP Plugin Installed"
@@ -176,18 +195,41 @@ done
 if [ "$printer_detected" = true ]; then
   # Running HP Setup via Expect
   header "Running HP Setup"
-  sudo -u "$SUDO_USER" expect <<EOF
-spawn sudo hp-setup -i
-expect {
-  "Found USB printers*" { send "1\r"; exp_continue }
-  eof
-}
+  expect <<'EOF'
+  log_user 1
+  set timeout -1
+  spawn hp-setup -i -x --auto
+
+  expect {
+      "*Found USB printers*" {
+          send "1\r"
+          exp_continue
+      }
+      eof
+  }
 EOF
+
   if [ $? -eq 0 ]; then
     log_success "HP Setup Completed"
   else
     log_failure "HP Setup Failed"
   fi
+
+  # Print test page
+  header "Printing Test Page"
+  PRINTER_ID=$(lpstat -v | grep -i hp | awk '{print $3}' | sed 's/:$//')
+  TEST_PAGE="/usr/share/cups/data/testprint"
+  if [ -f "$TEST_PAGE" ] && [ -n "$PRINTER_ID" ]; then
+    lp -d "$PRINTER_ID" "$TEST_PAGE"
+    if [ $? -eq 0 ]; then
+      log_success "Test page sent successfully to printer: $PRINTER_ID"
+    else
+      log_failure "Test page failed to print"
+    fi
+  else
+    log_failure "Test page or printer ID not found"
+  fi
+
 else
   log_failure "No HP USB printer detected. Skipping HP Setup."
 fi

@@ -198,14 +198,17 @@ if [ "$printer_detected" = true ]; then
   expect <<'EOF'
   log_user 1
   set timeout -1
-  spawn hp-setup -i -x --auto
+  spawn hp-setup -i
 
   expect {
-      "*Found USB printers*" {
-          send "1\r"
-          exp_continue
-      }
-      eof
+    "*Found USB printers*" {
+      exp_continue
+    }
+    "*Enter number*" {
+      send "0\r"
+      exp_continue
+    }
+    eof
   }
 EOF
 
@@ -229,7 +232,6 @@ EOF
   else
     log_failure "Test page or printer ID not found"
   fi
-
 else
   log_failure "No HP USB printer detected. Skipping HP Setup."
 fi

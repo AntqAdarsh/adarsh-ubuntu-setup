@@ -147,31 +147,18 @@ check_and_log hp-toolbox "HPLIP & GUI Installed"
 
 # Installing HP Plugin via Expect
 header "Installing HP Plugin"
-expect <<'EOF'
-log_user 1
-set timeout -1
-spawn hp-plugin -i --required --force
+expect <<EOF
+  set timeout -1
+  log_user 1
+  spawn hp-plugin -i
 
-expect {
-    "*Do you accept the license agreement*" {
-        send "a\r"
-        exp_continue
-    }
-    "*Download the plugin from HP*" {
-        send "d\r"
-        exp_continue
-    }
-    "*Is this OK*" {
-        send "y\r"
-        exp_continue
-    }
-    "*Press 'q' to quit*" {
-        send "q\r"
-        exp_continue
-    }
+  expect {
+    "*license agreement*" { send "y\r"; exp_continue }
+    "*Enter option*" { send "d\r"; exp_continue }
     eof
-}
+  }
 EOF
+
 if [ $? -eq 0 ]; then
   log_success "HP Plugin Installed"
 else
@@ -196,20 +183,15 @@ if [ "$printer_detected" = true ]; then
   # Running HP Setup via Expect
   header "Running HP Setup"
   expect <<'EOF'
-  log_user 1
-  set timeout -1
-  spawn hp-setup -i
+    set timeout -1
+    log_user 1
+    spawn hp-setup -i
 
-  expect {
-    "*Found USB printers*" {
-      exp_continue
+    expect {
+      "*Found USB printers*" { exp_continue }
+      "*Enter number*" { send "0\r"; exp_continue }
+      eof
     }
-    "*Enter number*" {
-      send "0\r"
-      exp_continue
-    }
-    eof
-  }
 EOF
 
   if [ $? -eq 0 ]; then

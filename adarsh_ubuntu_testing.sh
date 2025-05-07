@@ -1,25 +1,56 @@
 #!/bin/bash
 
-# Detect the first HP USB printer installed
-PRINTER_NAME=$(lpstat -e | grep -i hp | head -n1)
+set -e
 
-if [ -z "$PRINTER_NAME" ]; then
-  echo "Failed: No HP USB printer found. Ensure it's connected and installed."
+echo "Checking for HP Plugin..."
+
+if ! hp-plugin -i --required | grep -q 'Installed'; then
+  echo "Installing HP plugin..."
+  yes | hp-plugin -i --required --force || {
+    echo "HP plugin installation failed."
+    exit 1
+  }
+else
+  echo "HP plugin already installed."
+fi
+
+echo "Detecting HP USB printer..."
+HP_USB=$(lsusb | grep -i hp)
+
+if [ -n "$HP_USB" ]; then
+  echo "HP USB printer found."
+else
+  echo "No HP printer detected via USB. Aborting."
   exit 1
 fi
 
-# Print the default Ubuntu test page (standard system test file)
+echo "Running hp-setup..."
+hp-setup -i -x --auto || {
+  echo "hp-setup failed."
+  exit 1
+}
+echo "HP Printer setup complete."
+
+echo "Locating printer ID..."
+PRINTER_ID=$(lpstat -p | grep hp | awk '{print $2}' | head -n1)
+
+if [ -z "$PRINTER_ID" ]; then
+  echo "Failed to detect configured HP printer ID."
+  exit 1
+fi
+
+echo "Using printer: $PRINTER_ID"
+
 TEST_PAGE="/usr/share/cups/data/testprint"
 if [ ! -f "$TEST_PAGE" ]; then
-  echo "Failed: Default Ubuntu test page not found at $TEST_PAGE"
+  echo "Ubuntu test page not found at $TEST_PAGE"
   exit 1
 fi
 
-# Send test page to detected printer
-lp -d "$PRINTER_NAME" "$TEST_PAGE"
-if [ $? -eq 0 ]; then
-  echo "Success: Test page sent to printer '$PRINTER_NAME'"
-else
-  echo "Failed: Unable to print test page to printer '$PRINTER_NAME'"
+echo "Sending test page to printer..."
+lp -d "$PRINTER_ID" "$TEST_PAGE" || {
+  echo "Failed to print test page to $PRINTER_ID"
   exit 1
-fi
+}
+
+echo "Test page sent successfully to $PRINTER_ID"

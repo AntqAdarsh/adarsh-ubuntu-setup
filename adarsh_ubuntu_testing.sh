@@ -38,6 +38,13 @@ check_and_log() {
   fi
 }
 
+#Start the sudo session refresh loop
+while true; do
+	sudo -v
+	sleep 300 #refresh every 5 minute
+done &
+SUDO_REFREST_PID=$!
+
 # Function to pin app to Ubuntu Dock
 pin_to_dock() {
     local app=$1
@@ -198,11 +205,13 @@ if [ "$printer_detected" = true ]; then
   expect <<'EOF'
     set timeout -1
     log_user 1
-    spawn hp-setup -i
+    spawn sudo hp-setup -i
 
     expect {
       "*Found USB printers*" { exp_continue }
       "*Enter number*" { send "0\r"; exp_continue }
+      "*Enter option*" { send "d\r"; exp_continue }
+	"*Do you accept the license*" { send "y\r"; exp_continue }
       eof
     }
 EOF
@@ -271,7 +280,9 @@ else
   log_failure "Current user's Desktop directory not found"
 fi
 
-# Reboot in 5 seconds
-echo -e "\nRebooting in 5 seconds..."
-sleep 5
+kill $SUDO_REFREST_PID
+
+# Reboot in 30 seconds
+echo -e "\nRebooting in 30 seconds..."
+sleep 30
 sudo reboot

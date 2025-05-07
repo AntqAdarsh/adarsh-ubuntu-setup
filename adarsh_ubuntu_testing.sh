@@ -147,20 +147,30 @@ check_and_log hp-toolbox "HPLIP & GUI Installed"
 
 # Installing HP Plugin via Expect
 header "Installing HP Plugin"
-expect <<EOF
-  set timeout -1
-  log_user 1
-  spawn hp-plugin -i
+expect <<'EOF'
+log_user 1
+set timeout -1
+spawn hp-plugin -i --required --force
 
-  expect {
-  -re "Do you accept the license.*" {
-      send "y\r"
-      exp_continue
+expect {
+    "*Do you accept the license agreement*" {
+        send "y\r"
+        exp_continue
     }
-    "*license agreement*" { send "y\r"; exp_continue }
-    "*Enter option*" { send "d\r"; exp_continue }
+    "*Download the plugin from HP*" {
+        send "d\r"
+        exp_continue
+    }
+    "*Is this OK*" {
+        send "y\r"
+        exp_continue
+    }
+    "*Press 'q' to quit*" {
+        send "q\r"
+        exp_continue
+    }
     eof
-  }
+}
 EOF
 
 if [ $? -eq 0 ]; then

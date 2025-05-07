@@ -157,6 +157,10 @@ expect {
         send "y\r"
         exp_continue
     }
+    "*Enter option*" {
+    send "d\r"
+    exp_continue
+    }
     "*Download the plugin from HP*" {
         send "d\r"
         exp_continue

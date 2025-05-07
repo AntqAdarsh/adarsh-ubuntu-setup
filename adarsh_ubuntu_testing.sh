@@ -1,18 +1,17 @@
-# Print Test Page for USB HP Printer
-header "Printing Test Page for HP USB Printer"
+#!/bin/bash
 
-# Find USB-connected HP printer name
-USB_PRINTER=$(lpstat -v | awk '/usb/ {gsub(/:$/, "", $3); print $3}')
+echo -e "\n===== Sending Test Page to USB-connected HP Printer ====="
+
+# Detect USB-connected HP printer
+USB_PRINTER=$(lpstat -v | awk '/usb/ && /HP/ {gsub(/:$/, "", $3); print $3}')
 
 if [ -n "$USB_PRINTER" ]; then
-  # Use hp-testpage silently with detected printer
-  sudo -u "$SUDO_USER" hp-testpage -p "$USB_PRINTER" >/dev/null 2>&1
-
-  if [ $? -eq 0 ]; then
-    log_success "HP Test Page sent to $USB_PRINTER"
+  echo "Detected HP USB Printer: $USB_PRINTER"
+  if hp-testpage -p "$USB_PRINTER" >/dev/null 2>&1; then
+    echo "Test print sent successfully to $USB_PRINTER"
   else
-    log_failure "Failed to print HP Test Page"
+    echo "Failed to send test page to $USB_PRINTER (hp-testpage command failed)"
   fi
 else
-  log_failure "No USB-connected HP printer found"
+  echo "No USB-connected HP printer found"
 fi

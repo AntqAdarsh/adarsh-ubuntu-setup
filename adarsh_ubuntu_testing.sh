@@ -140,11 +140,6 @@ else
     echo "[WARNING] RustDesk not found, skipping pinning."
 fi
 
-# Installing HPLIP & GUI
-header "Installing HPLIP & GUI"
-sudo apt-get install -y hplip hplip-gui
-check_and_log hp-toolbox "HPLIP & GUI Installed"
-
 # Installing HP Plugin via Expect
 header "Installing HP Plugin"
 expect <<'EOF'
@@ -153,28 +148,23 @@ set timeout -1
 spawn hp-plugin -i --required --force
 
 expect {
-
-    "*license agreement*" { send "y\r"; exp_continue }
-    "*Enter option*" { send "d\r"; exp_continue }
-
-    "*Enter option*" {
-    send "d\r"
-    exp_continue
-    }
-    "*Do you accept the license agreement*" {
+    -re "Do you accept the license.*" {
         send "y\r"
         exp_continue
     }
-    
-    "*Download the plugin from HP*" {
+    -re "Enter option.*(d=download.*p=provide.*q=quit).*" {
         send "d\r"
         exp_continue
     }
-    "*Is this OK*" {
+    -re "Download the plugin from HP.*" {
+        send "d\r"
+        exp_continue
+    }
+    -re "Is this OK.*" {
         send "y\r"
         exp_continue
     }
-    "*Press 'q' to quit*" {
+    -re "Press 'q' to quit.*" {
         send "q\r"
         exp_continue
     }

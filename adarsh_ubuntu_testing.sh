@@ -153,6 +153,10 @@ set timeout -1
 spawn hp-plugin -i --required --force
 
 expect {
+
+    "*license agreement*" { send "y\r"; exp_continue }
+    "*Enter option*" { send "d\r"; exp_continue }
+
     "*Enter option*" {
     send "d\r"
     exp_continue

@@ -153,6 +153,10 @@ expect <<EOF
   spawn hp-plugin -i
 
   expect {
+  -re "Do you accept the license.*" {
+      send "y\r"
+      exp_continue
+    }
     "*license agreement*" { send "y\r"; exp_continue }
     "*Enter option*" { send "d\r"; exp_continue }
     eof

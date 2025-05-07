@@ -1,4 +1,10 @@
 #!/bin/bash
+# Trigger sudo and cache password
+sudo -v
+
+# Keep sudo session alive in background
+(while true; do sudo -n true; sleep 60; done) &
+sudo_keepalive_pid=$!
 
 # Password protection
 read -sp "Enter script password: " input_pass
@@ -38,12 +44,6 @@ check_and_log() {
   fi
 }
 
-#Start the sudo session refresh loop
-while true; do
-	sudo -v
-	sleep 300 #refresh every 5 minute
-done &
-SUDO_REFREST_PID=$!
 
 # Function to pin app to Ubuntu Dock
 pin_to_dock() {

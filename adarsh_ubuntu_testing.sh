@@ -55,30 +55,27 @@ check_and_log() {
   fi
 }
 
-
 # Function to pin app to Ubuntu Dock
 pin_to_dock() {
-    local app=$1
-    local desktop_file
+  local app=$1
+  local desktop_file
 
-    # Try to find .desktop file
-    desktop_file=$(find /usr/share/applications/ ~/.local/share/applications/ -name "$app.desktop" 2>/dev/null | head -n 1)
+  desktop_file=$(find /usr/share/applications/ ~/.local/share/applications/ -name "$app.desktop" 2>/dev/null | head -n 1)
 
-    if [[ -n "$desktop_file" ]]; then
-        echo "[INFO] Pinning $app to Dock..."
-        current_favorites=$(gsettings get org.gnome.shell favorite-apps)
+  if [[ -n "$desktop_file" ]]; then
+    echo "[INFO] Pinning $app to Dock..."
+    current_favorites=$(gsettings get org.gnome.shell favorite-apps)
 
-        if [[ "$current_favorites" != *"$app.desktop"* ]]; then
-            # Add to favorites
-            new_favorites=$(echo "$current_favorites" | sed "s/]$/, '$app.desktop']/")
-            gsettings set org.gnome.shell favorite-apps "$new_favorites"
-            echo "[SUCCESS] $app pinned to Dock."
-        else
-            echo "[INFO] $app is already pinned to Dock."
-        fi
+    if [[ "$current_favorites" != *"$app.desktop"* ]]; then
+      new_favorites=$(echo "$current_favorites" | sed "s/]$/, '$app.desktop']/")
+      gsettings set org.gnome.shell favorite-apps "$new_favorites"
+      echo "[SUCCESS] $app pinned to Dock."
     else
-        echo "[WARNING] $app.desktop file not found, skipping pinning."
+      echo "[INFO] $app is already pinned to Dock."
     fi
+  else
+    echo "[WARNING] $app.desktop file not found, skipping pinning."
+  fi
 }
 
 # Disabling sleep settings
@@ -87,7 +84,6 @@ gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'no
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'
 gsettings set org.gnome.desktop.session idle-delay 0
 log_success "Sleep settings set to never sleep"
-
 
 # System update & upgrade
 header "System Update"
@@ -116,9 +112,9 @@ check_and_log google-chrome "Google Chrome Installed"
 
 # Pin Google Chrome
 if command -v google-chrome >/dev/null 2>&1; then
-    pin_to_dock "google-chrome"
+  pin_to_dock "google-chrome"
 else
-    echo "[WARNING] Google Chrome not found, skipping pinning."
+  echo "[WARNING] Google Chrome not found, skipping pinning."
 fi
 
 # Installing LibreOffice
@@ -135,11 +131,10 @@ check_and_log anydesk "AnyDesk Installed"
 
 # Pin AnyDesk
 if command -v anydesk >/dev/null 2>&1; then
-    pin_to_dock "anydesk"
+  pin_to_dock "anydesk"
 else
-    echo "[WARNING] AnyDesk not found, skipping pinning."
+  echo "[WARNING] AnyDesk not found, skipping pinning."
 fi
-
 
 # Installing RustDesk (Working Version)
 header "Installing RustDesk"
@@ -153,9 +148,9 @@ fi
 
 # Pin RustDesk
 if command -v rustdesk >/dev/null 2>&1; then
-    pin_to_dock "rustdesk"
+  pin_to_dock "rustdesk"
 else
-    echo "[WARNING] RustDesk not found, skipping pinning."
+  echo "[WARNING] RustDesk not found, skipping pinning."
 fi
 
 # Installing HP Plugin via Expect
@@ -166,27 +161,27 @@ set timeout -1
 spawn hp-plugin -i --required --force
 
 expect {
-    -re "Do you accept the license.*" {
-        send "y\r"
-        exp_continue
-    }
-    -re "Enter option.*(d=download.*p=provide.*q=quit).*" {
-        send "d\r"
-        exp_continue
-    }
-    -re "Download the plugin from HP.*" {
-        send "d\r"
-        exp_continue
-    }
-    -re "Is this OK.*" {
-        send "y\r"
-        exp_continue
-    }
-    -re "Press 'q' to quit.*" {
-        send "q\r"
-        exp_continue
-    }
-    eof
+  -re "Do you accept the license.*" {
+    send "y\r"
+    exp_continue
+  }
+  -re "Enter option.*(d=download.*p=provide.*q=quit).*" {
+    send "d\r"
+    exp_continue
+  }
+  -re "Download the plugin from HP.*" {
+    send "d\r"
+    exp_continue
+  }
+  -re "Is this OK.*" {
+    send "y\r"
+    exp_continue
+  }
+  -re "Press 'q' to quit.*" {
+    send "q\r"
+    exp_continue
+  }
+  eof
 }
 EOF
 
@@ -222,7 +217,7 @@ if [ "$printer_detected" = true ]; then
       "*Found USB printers*" { exp_continue }
       "*Enter number*" { send "0\r"; exp_continue }
       "*Enter option*" { send "d\r"; exp_continue }
-	"*Do you accept the license*" { send "y\r"; exp_continue }
+      "*Do you accept the license*" { send "y\r"; exp_continue }
       eof
     }
 EOF
@@ -291,10 +286,9 @@ else
   log_failure "Current user's Desktop directory not found"
 fi
 
-
+# Cleanup and reboot
 trap 'kill $KEEP_ALIVE_PID' EXIT
 unset user_pass
-# Reboot in 30 seconds
 echo -e "\nRebooting in 30 seconds..."
 sleep 30
 sudo reboot

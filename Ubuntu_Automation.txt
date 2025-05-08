@@ -1,0 +1,153 @@
+Ubuntu Automation Setup Guide
+
+Powered by Adarsh Chourasiya
+
+
+---
+
+Purpose
+
+This guide walks you through a fully automated setup of a Ubuntu system in your office, including essential software installation, printer setup, and user creation. No technical skills are needed — just follow the steps below.
+
+
+---
+
+What You'll Need
+
+A PC with Ubuntu freshly installed
+
+Administrator access to the system
+
+Internet connection (Ethernet preferred for speed & reliability)
+
+An HP USB printer
+
+This setup file: adarsh-ubuntu-setup.sh
+
+
+
+---
+
+Step-by-Step Instructions
+
+1. Install Ubuntu
+
+Use a clean Ubuntu installation (preferably 22.04 or newer). Choose the default options.
+
+2. Log in as Administrator
+
+Complete setup and sign in using the default user created during installation.
+
+3. Connect to the Internet
+
+Plug in an Ethernet cable
+OR
+
+Connect to a strong Wi-Fi network
+
+
+Note: A stable internet connection is crucial for automation.
+
+4. Plug in the HP Printer
+
+Insert the HP printer’s USB cable into the PC.
+
+No need to click anything. The system will auto-detect it during the script execution.
+
+
+5. Launch the Terminal
+
+Press Ctrl + Alt + T to open the terminal.
+
+
+---
+
+6. Run the Automation Script
+
+Type the command below and press Enter:
+
+bash adarsh-ubuntu-setup.sh
+
+
+---
+
+7. Follow On-Screen Prompts
+
+You’ll be asked for:
+
+Your Ubuntu user password (twice, during setup)
+
+A script password, enter:
+
+adarsh@123
+
+
+
+---
+
+8. Let It Work
+
+The script will now:
+
+Update the system
+
+Install essential applications (Chrome, AnyDesk, RustDesk, LibreOffice, etc.)
+
+Configure the HP printer silently
+
+Create a new user:
+
+Username: Depo
+
+Password: depo
+
+
+Generate setup logs and place them on your desktop
+
+Restart the system automatically
+
+
+
+---
+
+After Restart
+
+Log in and verify:
+
+Apps are installed
+
+Printer is working
+
+System is ready for use
+
+
+
+No additional setup is required.
+
+
+---
+
+Need Help?
+
+If you face any issues, contact:
+
+Adarsh Chourasiya
+Phone: +91 9039221415
+Email: adarshchourasiya277@gmail.com
+
+
+---
+
+Notes
+
+Do not unplug the printer or power during setup
+
+Script is designed for HP USB printers only
+
+Best results on Ubuntu 22.04 LTS or later
+
+
+
+---
+
+Would you like this content exported as a professional .pdf or .txt file, or embedded inside the automation .deb or .sh installer as a help document?

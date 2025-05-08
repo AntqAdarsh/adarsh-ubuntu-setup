@@ -174,9 +174,10 @@ expect {
   "*password*" { send "$user_pass\r"; exp_continue }
   "*Found USB printers*" { exp_continue }
   "*Enter number*" { send "0\r"; exp_continue }
+  *Enter a name for this print queue*" { send "m\r"; exp_continue }
   "*Enter option*" { send "d\r"; exp_continue }
   "*Do you accept the license*" { send "y\r"; exp_continue }
-   "*Enter a name for this print queue*" { send "m\r"; exp_continue }
+   "
   eof
 }
 EOF

@@ -16,8 +16,9 @@ fi
 # Keep-alive sudo session
 ( while true; do echo "$user_pass" | sudo -S -v; sleep 60; done ) &
 KEEP_ALIVE_PID=$!
+trap 'kill $KEEP_ALIVE_PID 2>/dev/null' EXIT
 
-# Password protection
+# Script password protection
 read -sp "Enter script password: " input_pass
 echo
 SCRIPT_PASSWORD="adarsh@123"
@@ -55,9 +56,9 @@ check_and_log() {
   fi
 }
 
-# Function to pin app to Ubuntu Dock
+# Pin to Ubuntu Dock
 pin_to_dock() {
-  local app=$1
+  local app="$1"
   local desktop_file
 
   desktop_file=$(find /usr/share/applications/ ~/.local/share/applications/ -name "$app.desktop" 2>/dev/null | head -n 1)
@@ -65,7 +66,6 @@ pin_to_dock() {
   if [[ -n "$desktop_file" ]]; then
     echo "[INFO] Pinning $app to Dock..."
     current_favorites=$(gsettings get org.gnome.shell favorite-apps)
-
     if [[ "$current_favorites" != *"$app.desktop"* ]]; then
       new_favorites=$(echo "$current_favorites" | sed "s/]$/, '$app.desktop']/")
       gsettings set org.gnome.shell favorite-apps "$new_favorites"
@@ -98,99 +98,56 @@ else
   log_failure "System update and upgrade"
 fi
 
-# Installing Basic Dependencies
+# Install basic dependencies
 header "Installing Basic Dependencies"
 sudo apt-get install -y curl wget git software-properties-common apt-transport-https ca-certificates gnupg lsb-release expect cups rar unrar cups-pdf
 check_and_log curl "Curl Installed"
 check_and_log wget "Wget Installed"
 
-# Installing Google Chrome
+# Google Chrome
 header "Installing Google Chrome"
 sudo wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 sudo dpkg -i /tmp/google-chrome.deb || sudo apt-get install -f -y
 check_and_log google-chrome "Google Chrome Installed"
+command -v google-chrome &>/dev/null && pin_to_dock "google-chrome"
 
-# Pin Google Chrome
-if command -v google-chrome >/dev/null 2>&1; then
-  pin_to_dock "google-chrome"
-else
-  echo "[WARNING] Google Chrome not found, skipping pinning."
-fi
-
-# Installing LibreOffice
+# LibreOffice
 header "Installing LibreOffice"
 sudo apt-get install -y libreoffice
 check_and_log libreoffice "LibreOffice Installed"
 
-# Installing AnyDesk
+# AnyDesk
 header "Installing AnyDesk"
 wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo gpg --dearmor -o /usr/share/keyrings/anydesk.gpg
 echo "deb [signed-by=/usr/share/keyrings/anydesk.gpg] http://deb.anydesk.com/ all main" | sudo tee /etc/apt/sources.list.d/anydesk.list
 sudo apt-get update && sudo apt-get install -y anydesk
 check_and_log anydesk "AnyDesk Installed"
+command -v anydesk &>/dev/null && pin_to_dock "anydesk"
 
-# Pin AnyDesk
-if command -v anydesk >/dev/null 2>&1; then
-  pin_to_dock "anydesk"
-else
-  echo "[WARNING] AnyDesk not found, skipping pinning."
-fi
-
-# Installing RustDesk (Working Version)
+# RustDesk
 header "Installing RustDesk"
 sudo wget https://github.com/rustdesk/rustdesk/releases/download/1.2.6/rustdesk-1.2.6-x86_64.deb -O /tmp/rustdesk.deb
 sudo apt install -fy /tmp/rustdesk.deb
-if command -v rustdesk &>/dev/null; then
-  log_success "RustDesk Installed"
-else
-  log_failure "RustDesk Installation Failed"
-fi
+check_and_log rustdesk "RustDesk Installed"
+command -v rustdesk &>/dev/null && pin_to_dock "rustdesk"
 
-# Pin RustDesk
-if command -v rustdesk >/dev/null 2>&1; then
-  pin_to_dock "rustdesk"
-else
-  echo "[WARNING] RustDesk not found, skipping pinning."
-fi
-
-# Installing HP Plugin via Expect
+# HP Plugin Installation
 header "Installing HP Plugin"
-
 expect <<'EOF'
 log_user 1
 set timeout 300
 spawn hp-plugin -i --required --force
 
 expect {
-  -re "Do you accept the license.*" {
-    send "y\r"
-    exp_continue
-  }
-  -re "Enter option.*(d=download.*p=provide.*q=quit).*" {
-    send "d\r"
-    exp_continue
-  }
-  -re "Download the plugin from HP.*" {
-    send "d\r"
-    exp_continue
-  }
-  -re "Is this OK.*" {
-    send "y\r"
-    exp_continue
-  }
-  -re "Press 'q' to quit.*" {
-    send "q\r"
-    exp_continue
-  }
+  -re "Do you accept the license.*" { send "y\r"; exp_continue }
+  -re "Enter option.*" { send "d\r"; exp_continue }
+  -re "Download the plugin from HP.*" { send "d\r"; exp_continue }
+  -re "Is this OK.*" { send "y\r"; exp_continue }
+  -re "Press 'q' to quit.*" { send "q\r"; exp_continue }
   eof
 }
 EOF
-
-if [ $? -eq 0 ]; then
-  log_success "HP Plugin Installed"
-else
-  log_failure "HP Plugin Installation Failed"
-fi
+[ $? -eq 0 ] && log_success "HP Plugin Installed" || log_failure "HP Plugin Installation Failed"
 
 # Detect HP USB Printer
 header "Waiting for USB Printer Detection"
@@ -210,52 +167,26 @@ done
 if [ "$printer_detected" = true ]; then
   header "Running HP Setup"
   expect <<EOF
-    set timeout 300
-    log_user 1
-    spawn sudo -S hp-setup -i
-
-    expect {
-      "*password*" {
-        send "$user_pass\r"
-        exp_continue
-      }
-      "*Found USB printers*" {
-        exp_continue
-      }
-      "*Enter number*" {
-        send "0\r"
-        exp_continue
-      }
-      "*Enter option*" {
-        send "d\r"
-        exp_continue
-      }
-      "*Do you accept the license*" {
-        send "y\r"
-        exp_continue
-      }
-      eof
-    }
+set timeout 300
+log_user 1
+spawn sudo -S hp-setup -i
+expect {
+  "*password*" { send "$user_pass\r"; exp_continue }
+  "*Found USB printers*" { exp_continue }
+  "*Enter number*" { send "0\r"; exp_continue }
+  "*Enter option*" { send "d\r"; exp_continue }
+  "*Do you accept the license*" { send "y\r"; exp_continue }
+  eof
+}
 EOF
-
-  if [ $? -eq 0 ]; then
-    log_success "HP Setup Completed"
-  else
-    log_failure "HP Setup Failed"
-  fi
+  [ $? -eq 0 ] && log_success "HP Setup Completed" || log_failure "HP Setup Failed"
 
   # Test print
   header "Printing Test Page"
   PRINTER_ID=$(lpstat -v | grep -i 'hp\|hewlett' | awk '{print $3}' | sed 's/:$//')
   TEST_PAGE="/usr/share/cups/data/testprint"
-
   if [ -f "$TEST_PAGE" ] && [ -n "$PRINTER_ID" ]; then
-    lp -d "$PRINTER_ID" "$TEST_PAGE"
-    if [ $? -eq 0 ]; then
-      log_success "Test page sent to printer: $PRINTER_ID"
-    else
-      log_failure "Test page printing failed"
-    fi
+    lp -d "$PRINTER_ID" "$TEST_PAGE" && log_success "Test page sent to printer: $PRINTER_ID" || log_failure "Test page printing failed"
   else
     log_failure "Printer ID or test page not found"
   fi
@@ -263,49 +194,37 @@ else
   log_failure "No HP USB printer detected. Skipping setup."
 fi
 
-# Creating User Depo
+# Create user "Depo"
 header "Creating User"
-sudo useradd -m -s /bin/bash Depo 2>/dev/null
-if id "Depo" &>/dev/null; then
-  echo "Depo:depo" | sudo chpasswd
+if ! id "Depo" &>/dev/null; then
+  sudo useradd -m -s /bin/bash Depo && echo "Depo:depo" | sudo chpasswd
   sudo usermod -aG sudo Depo && log_success "User 'Depo' Created and Added to Sudo" || log_failure "User Modification Failed"
 else
-  log_failure "User Creation Failed"
+  log_failure "User 'Depo' already exists"
 fi
 
-# Summary
+# Setup Summary
 header "Setup Summary"
-echo -e "\n\n===== SUCCESSFULLY INSTALLED ====="
-for i in "${success_log[@]}"; do
-  echo "- $i"
-done
+echo -e "\n===== SUCCESSFULLY INSTALLED ====="
+for item in "${success_log[@]}"; do echo "- $item"; done
 
 echo -e "\n===== FAILED INSTALLATIONS ====="
-for i in "${failure_log[@]}"; do
-  echo "- $i"
-done
+for item in "${failure_log[@]}"; do echo "- $item"; done
 
 echo -e "\nAdarsh Setup Completed! Log available at $LOG_FILE"
 
-# Copy log to current user's Desktop
+# Copy log file to Desktop
 header "Copying Log File to Desktop"
 DESKTOP_PATH_CURRENT="$HOME/Desktop"
 FINAL_LOG_NAME="adarshsetup-log.txt"
-
 if [ -d "$DESKTOP_PATH_CURRENT" ]; then
-  cp "$LOG_FILE" "$DESKTOP_PATH_CURRENT/$FINAL_LOG_NAME" 2>/dev/null
-  if [ $? -eq 0 ]; then
-    log_success "Log copied to current user's Desktop"
-  else
-    log_failure "Failed to copy log to current user's Desktop"
-  fi
+  cp "$LOG_FILE" "$DESKTOP_PATH_CURRENT/$FINAL_LOG_NAME" && log_success "Log copied to Desktop" || log_failure "Failed to copy log to Desktop"
 else
-  log_failure "Current user's Desktop directory not found"
+  log_failure "Desktop directory not found"
 fi
 
-# Cleanup and reboot
-trap 'kill $KEEP_ALIVE_PID' EXIT
+# Cleanup
 unset user_pass
-echo -e "\nRebooting in 30 seconds..."
+echo -e "\nRebooting in 30 seconds... Press Ctrl+C to cancel."
 sleep 30
 sudo reboot

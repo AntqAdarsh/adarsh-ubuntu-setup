@@ -28,7 +28,7 @@ if [ "$input_pass" != "$SCRIPT_PASSWORD" ]; then
   exit 1
 fi
 
-LOG_FILE="/tmp/adarshsetup.log"
+LOG_FILE="/tmp/adarsh_setup.log"
 echo "Starting Adarsh Ubuntu Setup..." | tee "$LOG_FILE"
 
 success_log=()
@@ -216,7 +216,7 @@ echo -e "\nAdarsh Setup Completed! Log available at $LOG_FILE"
 # Copy log file to Desktop
 header "Copying Log File to Desktop"
 DESKTOP_PATH_CURRENT="$HOME/Desktop"
-FINAL_LOG_NAME="adarshsetup-log.txt"
+FINAL_LOG_NAME="adarsh_setup-log.txt"
 if [ -d "$DESKTOP_PATH_CURRENT" ]; then
   cp "$LOG_FILE" "$DESKTOP_PATH_CURRENT/$FINAL_LOG_NAME" && log_success "Log copied to Desktop" || log_failure "Failed to copy log to Desktop"
 else

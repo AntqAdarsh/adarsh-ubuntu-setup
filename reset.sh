@@ -195,16 +195,17 @@ PRINTER_ID=$(lpstat -v | grep -i 'hp\|hewlett' | awk '{print $3}' | sed 's/:$//'
 
 # Choose test page source
 TEST_PAGE="/usr/share/cups/data/default-testpage.pdf"
-if [ ! -f "$TEST_PAGE" ]; then
-  echo "Test print from Adarsh setup script" > /tmp/testprint.txt
-  TEST_PAGE="/tmp/testprint.txt"
-fi
+  if [ ! -f "$TEST_PAGE" ]; then
+    echo "Test print from Adarsh setup script" > /tmp/testprint.txt
+    TEST_PAGE="/tmp/testprint.txt"
+  fi
 
-if [ -n "$PRINTER_ID" ]; then
-  echo "[INFO] Sending test print to: $PRINTER_ID"
-  lp -d "$PRINTER_ID" "$TEST_PAGE" && log_success "Test page sent to printer: $PRINTER_ID" || log_failure "Test page printing failed"
-else
-  log_failure "Could not determine HP printer ID"
+  if [ -n "$PRINTER_ID" ]; then
+    echo "[INFO] Sending test print to: $PRINTER_ID"
+    lp -d "$PRINTER_ID" "$TEST_PAGE" && log_success "Test page sent to printer: $PRINTER_ID" || log_failure "Test page printing failed"
+  else
+    log_failure "Could not determine HP printer ID"
+  fi
 fi
 
 # Create user "Depo"

@@ -1,10 +1,21 @@
 #!/bin/bash
-# Trigger sudo and cache password
-sudo -v
 
-# Keep sudo session alive in background
-(while true; do sudo -n true; sleep 60; done) &
-sudo_keepalive_pid=$!
+# Prompt for the sudo password securely
+read -s -p "Enter your system password: " user_pass
+echo
+
+# Validate the password immediately
+echo "$user_pass" | sudo -S -v >/dev/null 2>&1
+
+# Exit if the password is incorrect
+if [ $? -ne 0 ]; then
+  echo "Incorrect password. Exiting."
+  exit 1
+fi
+
+# Keep-alive sudo session
+( while true; do echo "$user_pass" | sudo -S -v; sleep 60; done ) &
+KEEP_ALIVE_PID=$!
 
 # Password protection
 read -sp "Enter script password: " input_pass
@@ -205,7 +216,7 @@ if [ "$printer_detected" = true ]; then
   expect <<'EOF'
     set timeout -1
     log_user 1
-    spawn sudo hp-setup -i
+    spawn bash -c "echo \"$user_pass\" | sudo -S hp-setup -i"
 
     expect {
       "*Found USB printers*" { exp_continue }
@@ -280,7 +291,8 @@ else
   log_failure "Current user's Desktop directory not found"
 fi
 
-kill $SUDO_REFREST_PID
+
+trap 'kill $KEEP_ALIVE_PID' EXIT
 
 # Reboot in 30 seconds
 echo -e "\nRebooting in 30 seconds..."

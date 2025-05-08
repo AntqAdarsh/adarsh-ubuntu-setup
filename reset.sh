@@ -183,17 +183,23 @@ expect {
 EOF
   [ $? -eq 0 ] && log_success "HP Setup Completed" || log_failure "HP Setup Failed"
 
-  # Test print
-  header "Printing Test Page"
-  PRINTER_ID=$(lpstat -v | grep -i 'hp\|hewlett' | awk '{print $3}' | sed 's/:$//')
-  TEST_PAGE="/usr/share/cups/data/testprint"
-  if [ -f "$TEST_PAGE" ] && [ -n "$PRINTER_ID" ]; then
-    lp -d "$PRINTER_ID" "$TEST_PAGE" && log_success "Test page sent to printer: $PRINTER_ID" || log_failure "Test page printing failed"
-  else
-    log_failure "Printer ID or test page not found"
-  fi
+# Test print
+header "Printing Test Page"
+
+# Get the most recently added HP printer
+PRINTER_ID=$(lpstat -v | grep -i 'hp\|hewlett' | awk '{print $3}' | sed 's/:$//' | tail -n 1)
+
+TEST_PAGE="/usr/share/cups/data/default-testpage.pdf"
+if [ ! -f "$TEST_PAGE" ]; then
+  echo "Test print from Adarsh setup script" > /tmp/testprint.txt
+  TEST_PAGE="/tmp/testprint.txt"
+fi
+
+if [ -n "$PRINTER_ID" ]; then
+  echo "[INFO] Sending test print to: $PRINTER_ID"
+  lp -d "$PRINTER_ID" "$TEST_PAGE" && log_success "Test page sent to printer: $PRINTER_ID" || log_failure "Test page printing failed"
 else
-  log_failure "No HP USB printer detected. Skipping setup."
+  log_failure "Could not determine HP printer ID"
 fi
 
 # Create user "Depo"

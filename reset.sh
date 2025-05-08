@@ -189,6 +189,7 @@ header "Printing Test Page"
 # Get the most recently added HP printer
 PRINTER_ID=$(lpstat -v | grep -i 'hp\|hewlett' | awk '{print $3}' | sed 's/:$//' | tail -n 1)
 
+# Choose test page source
 TEST_PAGE="/usr/share/cups/data/default-testpage.pdf"
 if [ ! -f "$TEST_PAGE" ]; then
   echo "Test print from Adarsh setup script" > /tmp/testprint.txt

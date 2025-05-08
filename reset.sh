@@ -29,7 +29,7 @@ if [ "$input_pass" != "$SCRIPT_PASSWORD" ]; then
 fi
 
 LOG_FILE="/tmp/adarshsetup.log"
-echo "Starting Adarsh Setup..." | tee "$LOG_FILE"
+echo "Starting Adarsh Ubuntu Setup..." | tee "$LOG_FILE"
 
 success_log=()
 failure_log=()

@@ -174,10 +174,14 @@ expect {
   "*password*" { send "$user_pass\r"; exp_continue }
   "*Found USB printers*" { exp_continue }
   "*Enter number*" { send "0\r"; exp_continue }
-  *Enter a name for this print queue*" { send "m\r"; exp_continue }
   "*Enter option*" { send "d\r"; exp_continue }
   "*Do you accept the license*" { send "y\r"; exp_continue }
-   "
+  "*Please enter a name for this print queue*" { send "m\r"; exp_continue }
+  "*Does this PPD file appear to be the correct one*" { send "y\r"; exp_continue }
+  "*Enter a location description for this printer*" { send "Office Printer\r"; exp_continue }
+  "*Enter additonal information or notes for this printer*" { send "\r"; exp_continue }
+  "*Would you like to print a test page*" { send "n\r"; exp_continue }
+  "*Would you like to install another print queue for this device*" { send "n\r"; exp_continue }
   eof
 }
 EOF

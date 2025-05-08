@@ -213,7 +213,7 @@ done
 if [ "$printer_detected" = true ]; then
   # Running HP Setup via Expect
   header "Running HP Setup"
-  expect <<'EOF'
+  expect <<EOF
     set timeout -1
     log_user 1
     spawn bash -c "echo \"$user_pass\" | sudo -S hp-setup -i"
@@ -293,7 +293,7 @@ fi
 
 
 trap 'kill $KEEP_ALIVE_PID' EXIT
-
+unset user_pass
 # Reboot in 30 seconds
 echo -e "\nRebooting in 30 seconds..."
 sleep 30
